@@ -7,11 +7,14 @@ import Link from 'next/link'
 
 const NAV_ITEMS = [
   { icon: '📊', label: 'Dashboard', href: '/' },
+  { icon: '📅', label: 'Bookings', href: '/bookings' },
   { icon: '🧹', label: 'Cleaners', href: '/cleaners' },
   { icon: '👥', label: 'Clients', href: '/clients' },
-  { icon: '📅', label: 'Bookings', href: '/bookings' },
+  { icon: '🔍', label: 'Inspections', href: '/inspections' },
+  { icon: '⚖️', label: 'Disputes', href: '/disputes' },
   { icon: '💰', label: 'Invoices', href: '/invoices' },
   { icon: '⭐', label: 'Reviews', href: '/reviews' },
+  { icon: '🎥', label: 'Videos', href: '/videos' },
   { icon: '💸', label: 'Payouts', href: '/payouts' },
   { icon: '⚙️', label: 'Settings', href: '/settings' },
 ]

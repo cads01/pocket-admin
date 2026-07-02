@@ -82,18 +82,14 @@ export default function DashboardPage() {
     .filter((b) => b.status === 'completed' || b.status === 'reviewed')
     .reduce((s, b) => s + b.platform_fee, 0)
 
-  const activeCleaners = cleaners.filter((c) => c.status === 'active').length
+  const activeCleaners = cleaners.filter((c) => c.active).length
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayJobs = bookings.filter((b) => b.scheduled_date === todayStr)
 
   const upcomingJobs = bookings
     .filter((b) => b.scheduled_date >= todayStr && b.status !== 'cancelled')
-    .sort(
-      (a, b) =>
-        a.scheduled_date.localeCompare(b.scheduled_date) ||
-        a.scheduled_time.localeCompare(b.scheduled_time)
-    )
+    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))
     .slice(0, 8)
 
   return (

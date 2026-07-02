@@ -42,7 +42,10 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith('/invoices') ||
     req.nextUrl.pathname.startsWith('/reviews') ||
     req.nextUrl.pathname.startsWith('/payouts') ||
-    req.nextUrl.pathname.startsWith('/settings')
+    req.nextUrl.pathname.startsWith('/settings') ||
+    req.nextUrl.pathname.startsWith('/inspections') ||
+    req.nextUrl.pathname.startsWith('/disputes') ||
+    req.nextUrl.pathname.startsWith('/videos')
 
   if (!user && isProtected) {
     const url = req.nextUrl.clone()

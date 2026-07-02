@@ -3,83 +3,113 @@
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Booking } from '@/lib/supabase'
+import type { Booking, BookingTask, TaskPhoto, Cleaner } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
 
-const STATUSES = ['all', 'requested', 'assigned', 'in_progress', 'completed', 'reviewed', 'cancelled'] as const
+const DEFAULT_ROOMS = [
+  { room: 'Kitchen', tasks: ['Countertops & surfaces', 'Sink & faucet', 'Stovetop & range', 'Microwave interior', 'Cabinet exteriors', 'Sweep & mop floor', 'Take out trash'] },
+  { room: 'Bathroom', tasks: ['Toilet (interior & exterior)', 'Sink & vanity', 'Mirror', 'Shower/tub', 'Towel racks', 'Sweep & mop floor'] },
+  { room: 'Living Room', tasks: ['Dust surfaces', 'Vacuum carpets', 'Sweep hard floors', 'Wipe windowsills', 'Tidy cushions', 'Clean coffee table'] },
+  { room: 'Bedroom', tasks: ['Make bed', 'Dust surfaces', 'Vacuum floor', 'Wipe windowsills', 'Organize nightstand', 'Empty trash'] },
+]
 
-export default function BookingsPage() {
+export default function BookingWizard() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [filter, setFilter] = useState<string>('all')
-  const [showModal, setShowModal] = useState(false)
-  const [showTimeline, setShowTimeline] = useState<string | null>(null)
-  const [form, setForm] = useState({
-    customer_name: '', cleaner_id: '', service_type: 'standard',
-    date: '', time: '', amount: 0, address: '', notes: '',
-  })
-  const [cleaners, setCleaners] = useState<any[]>([])
-  const [customers, setCustomers] = useState<any[]>([])
+  const [cleaners, setCleaners] = useState<Cleaner[]>([])
+  const [showWizard, setShowWizard] = useState(false)
+
+  // Wizard state
+  const [step, setStep] = useState(0)
+  const [selectedCleaner, setSelectedCleaner] = useState('')
+  const [selectedDate, setSelectedDate] = useState('')
+  const [address, setAddress] = useState('')
+  const [hours, setHours] = useState(2)
+  const [selectedRooms, setSelectedRooms] = useState<{room: string; tasks: {task: string; checked: boolean}[]}[]>(
+    DEFAULT_ROOMS.map(r => ({ room: r.room, tasks: r.tasks.map(t => ({ task: t, checked: true })) }))
+  )
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (loading) return
     if (!user) { router.push('/login'); return }
-    loadData()
+    load()
   }, [user, loading])
 
-  async function loadData() {
+  async function load() {
     if (!supabase) return
     const { data: b } = await supabase
       .from('bookings')
       .select('*')
       .order('created_at', { ascending: false })
+      .limit(50)
     if (b) setBookings(b)
 
-    const { data: cl } = await supabase.from('cleaners').select('*, profiles(name)')
-    if (cl) setCleaners(cl as any)
-
-    const { data: cu } = await supabase.from('customers').select('*, profiles(name)')
-    if (cu) setCustomers(cu as any)
-  }
-
-  const filtered = filter === 'all' ? bookings : bookings.filter((b) => b.status === filter)
-
-  const requested = bookings.filter((b) => b.status === 'requested').length
-  const active = bookings.filter((b) => b.status === 'assigned' || b.status === 'in_progress').length
-  const completed = bookings.filter((b) => b.status === 'completed' || b.status === 'reviewed').length
-  const revenue = bookings
-    .filter((b) => b.status === 'completed' || b.status === 'reviewed')
-    .reduce((s, b) => s + b.amount, 0)
-  const fees = bookings
-    .filter((b) => b.status === 'completed' || b.status === 'reviewed')
-    .reduce((s, b) => s + b.platform_fee, 0)
-
-  async function updateStatus(id: string, status: string) {
-    if (!supabase) return
-    await supabase.from('bookings').update({ status }).eq('id', id)
-    await loadData()
+    const { data: c } = await supabase.from('cleaners').select('*').eq('verified', true)
+    if (c) setCleaners(c)
   }
 
   async function createBooking() {
-    if (!supabase) return
-    const fee = form.amount * 0.15
-    const payout = form.amount - fee
-    await supabase.from('bookings').insert({
-      customer_id: form.customer_name || null,
-      cleaner_id: form.cleaner_id || null,
-      status: form.cleaner_id ? 'assigned' : 'requested',
-      service_type: form.service_type,
-      scheduled_date: form.date,
-      scheduled_time: form.time,
-      amount: form.amount,
-      platform_fee: fee,
-      cleaner_payout: payout,
-      address: form.address,
-      notes: form.notes,
-    })
-    setShowModal(false)
-    await loadData()
+    if (!supabase || !selectedCleaner || !selectedDate || !address) return
+    setSubmitting(true)
+
+    const total = (cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours
+    const fee = Math.round(total * 0.15)
+    const cleanerCut = total - fee
+
+    const { data: booking } = await supabase
+      .from('bookings')
+      .insert({
+        cleaner_id: selectedCleaner,
+        customer_id: user!.id,
+        scheduled_date: selectedDate,
+        duration: hours,
+        amount: Math.round(total),
+        platform_fee: fee,
+        cleaner_amount: Math.round(cleanerCut),
+        address,
+        status: 'requested',
+        escrow_status: 'held',
+        inspection_status: 'pending',
+        recovery_status: 'none',
+      })
+      .select('id')
+      .single()
+
+    if (booking) {
+      const tasksToInsert: any[] = []
+      selectedRooms.forEach(r => {
+        r.tasks.filter(t => t.checked).forEach(t => {
+          tasksToInsert.push({
+            booking_id: booking.id,
+            room: r.room,
+            task: t.task,
+          })
+        })
+      })
+      if (tasksToInsert.length > 0) {
+        await supabase.from('booking_tasks').insert(tasksToInsert)
+      }
+    }
+
+    setSubmitting(false)
+    setShowWizard(false)
+    setStep(0)
+    load()
+  }
+
+  const toggleRoomTask = (roomIdx: number, taskIdx: number) => {
+    const copy = [...selectedRooms]
+    copy[roomIdx].tasks[taskIdx].checked = !copy[roomIdx].tasks[taskIdx].checked
+    setSelectedRooms(copy)
+  }
+
+  const toggleAllRoom = (roomIdx: number) => {
+    const copy = [...selectedRooms]
+    const allChecked = copy[roomIdx].tasks.every(t => t.checked)
+    copy[roomIdx].tasks = copy[roomIdx].tasks.map(t => ({ ...t, checked: !allChecked }))
+    setSelectedRooms(copy)
   }
 
   return (
@@ -87,104 +117,234 @@ export default function BookingsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold">Bookings</h2>
-          <p className="text-sm text-[#888]">Full job lifecycle</p>
+          <p className="text-sm text-[#888]">Room-by-room booking wizard</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm hover:bg-[#00e89c] transition-colors cursor-pointer"
+          onClick={() => setShowWizard(true)}
+          className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm cursor-pointer"
         >
           + New Booking
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Total</div>
-          <div className="text-2xl font-bold">{bookings.length}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Requested</div>
-          <div className="text-2xl font-bold text-[#8b5cf6]">{requested}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Active</div>
-          <div className="text-2xl font-bold text-[#00d28e]">{active}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Platform Fees</div>
-          <div className="text-2xl font-bold text-[#ffd700]">${fees.toFixed(0)}</div>
-        </div>
-      </div>
+      {/* Wizard Modal */}
+      {showWizard && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#111] border border-[#1a1a1a] rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-lg">
+                  {step === 0 ? 'Select Cleaner & Time' : step === 1 ? 'Room-by-Room Checklist' : 'Review & Confirm'}
+                </h3>
+                <button onClick={() => setShowWizard(false)} className="text-[#555] hover:text-white text-xl cursor-pointer">&times;</button>
+              </div>
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {STATUSES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-              filter === s
-                ? 'bg-gradient-to-r from-[#00b4ff] to-[#8b5cf6] text-white'
-                : 'bg-[rgba(255,255,255,0.04)] text-[#888] hover:bg-[rgba(255,255,255,0.08)]'
-            }`}
-          >
-            {s === 'all' ? 'All' : s.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
+              {/* Step indicator */}
+              <div className="flex gap-1 mb-6">
+                {[0, 1, 2].map(s => (
+                  <div key={s} className={`flex-1 h-1 rounded ${s <= step ? 'bg-[#00d28e]' : 'bg-[#1a1a1a]'}`} />
+                ))}
+              </div>
 
+              {step === 0 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-[#aaa] block mb-1">Cleaner</label>
+                    <select
+                      value={selectedCleaner}
+                      onChange={(e) => setSelectedCleaner(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
+                    >
+                      <option value="">Select a cleaner...</option>
+                      {cleaners.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.business || c.id.slice(0, 8)} — ${c.hourly_rate}/hr
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[#aaa] block mb-1">Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[#aaa] block mb-1">Address</label>
+                    <input
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="123 Main St"
+                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[#aaa] block mb-1">Duration</label>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 6].map(h => (
+                        <button
+                          key={h}
+                          onClick={() => setHours(h)}
+                          className={`flex-1 py-2 rounded-lg text-sm border cursor-pointer ${
+                            hours === h ? 'bg-[#00d28e] text-[#0a0a0a] border-[#00d28e] font-semibold' : 'bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:border-[#00d28e]'
+                          }`}
+                        >
+                          {h}h
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 1 && (
+                <div className="space-y-4">
+                  <p className="text-sm text-[#888]">Select the rooms and tasks for this booking:</p>
+                  {selectedRooms.map((r, ri) => (
+                    <div key={r.room} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3">
+                      <button
+                        onClick={() => toggleAllRoom(ri)}
+                        className="flex items-center gap-2 w-full text-left font-semibold text-sm mb-2 cursor-pointer"
+                      >
+                        <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
+                          r.tasks.every(t => t.checked) ? 'bg-[#00d28e] border-[#00d28e] text-[#0a0a0a]' : 'border-[#2a2a2a]'
+                        }`}>
+                          {r.tasks.every(t => t.checked) ? '✓' : ''}
+                        </span>
+                        {r.room}
+                      </button>
+                      <div className="space-y-1 ml-6">
+                        {r.tasks.map((t, ti) => (
+                          <button
+                            key={t.task}
+                            onClick={() => toggleRoomTask(ri, ti)}
+                            className={`flex items-center gap-2 text-xs w-full text-left cursor-pointer ${
+                              t.checked ? 'text-white' : 'text-[#555]'
+                            }`}
+                          >
+                            <span className={`w-3 h-3 rounded-sm border flex items-center justify-center text-[8px] ${
+                              t.checked ? 'bg-[#00d28e] border-[#00d28e] text-[#0a0a0a]' : 'border-[#2a2a2a]'
+                            }`}>
+                              {t.checked ? '✓' : ''}
+                            </span>
+                            {t.task}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-3">
+                  <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3 text-sm">
+                    <div className="flex justify-between mb-1"><span className="text-[#888]">Cleaner</span><span>{cleaners.find(c => c.id === selectedCleaner)?.business || 'Selected'}</span></div>
+                    <div className="flex justify-between mb-1"><span className="text-[#888]">Date</span><span>{fmtDate(selectedDate)}</span></div>
+                    <div className="flex justify-between mb-1"><span className="text-[#888]">Duration</span><span>{hours}h</span></div>
+                    <div className="flex justify-between mb-1"><span className="text-[#888]">Rooms</span><span>{selectedRooms.filter(r => r.tasks.some(t => t.checked)).length}</span></div>
+                    <div className="flex justify-between mb-1"><span className="text-[#888]">Tasks</span><span>{selectedRooms.reduce((s, r) => s + r.tasks.filter(t => t.checked).length, 0)}</span></div>
+                    <div className="border-t border-[#1a1a1a] pt-1 mt-1 flex justify-between font-bold">
+                      <span>Total</span>
+                      <span className="text-[#00d28e]">${((cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours).toFixed(0)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3 text-sm">
+                    <p className="text-[#888] mb-1">Selected rooms:</p>
+                    <ul className="text-xs space-y-0.5">
+                      {selectedRooms.filter(r => r.tasks.some(t => t.checked)).map(r => (
+                        <li key={r.room} className="flex items-center gap-1">
+                          <span className="text-[#00d28e]">✓</span>
+                          {r.room} ({r.tasks.filter(t => t.checked).length} tasks)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                {step > 0 && (
+                  <button onClick={() => setStep(step - 1)} className="flex-1 py-2.5 bg-[#1a1a1a] rounded-lg text-sm cursor-pointer">
+                    Back
+                  </button>
+                )}
+                {step < 2 ? (
+                  <button
+                    onClick={() => setStep(step + 1)}
+                    disabled={step === 0 && (!selectedCleaner || !selectedDate || !address)}
+                    className="flex-1 py-2.5 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    onClick={createBooking}
+                    disabled={submitting}
+                    className="flex-1 py-2.5 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {submitting ? 'Creating...' : 'Confirm Booking'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking list */}
       <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
-        {filtered.length === 0 ? (
+        {bookings.length === 0 ? (
           <div className="text-center py-16 text-[#555]">
-            <div className="text-4xl mb-3 opacity-30">📅</div>
             <p>No bookings yet</p>
+            <button onClick={() => setShowWizard(true)} className="mt-3 px-4 py-2 bg-[#00d28e] text-[#0a0a0a] text-sm rounded-lg cursor-pointer">
+              Create your first booking
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-[#888] text-xs uppercase tracking-wide border-b border-[#1a1a1a]">
-                  <th className="text-left py-3 px-4">Customer</th>
-                  <th className="text-left py-3 px-4">Cleaner</th>
-                  <th className="text-left py-3 px-4">Service</th>
+                  <th className="text-left py-3 px-4">ID</th>
                   <th className="text-left py-3 px-4">Date</th>
                   <th className="text-left py-3 px-4">Amount</th>
-                  <th className="text-left py-3 px-4">Fee</th>
+                  <th className="text-left py-3 px-4">Escrow</th>
                   <th className="text-left py-3 px-4">Status</th>
-                  <th className="text-left py-3 px-4">Actions</th>
+                  <th className="text-left py-3 px-4">Inspection</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((b) => (
+                {bookings.map(b => (
                   <tr key={b.id} className="border-b border-[#151515] hover:bg-[#0f0f0f]">
-                    <td className="py-3 px-4 font-medium">{b.id.slice(0, 8)}</td>
-                    <td className="py-3 px-4 text-[#888]">{b.cleaner_id.slice(0, 8)}</td>
-                    <td className="py-3 px-4 text-[#888]">{b.service_type}</td>
+                    <td className="py-3 px-4 font-mono text-xs">{b.id.slice(0, 8)}</td>
                     <td className="py-3 px-4">{fmtDate(b.scheduled_date)}</td>
                     <td className="py-3 px-4">${b.amount.toFixed(0)}</td>
-                    <td className="py-3 px-4 text-[#ffd700]">${b.platform_fee.toFixed(0)}</td>
                     <td className="py-3 px-4">
-                      <span className={`status-${b.status} inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold`}>
-                        {b.status.replace('_', ' ')}
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        b.escrow_status === 'released' ? 'bg-[rgba(0,210,142,0.12)] text-[#00d28e]'
+                        : b.escrow_status === 'disputed' ? 'bg-[rgba(255,80,80,0.12)] text-[#ff5050]'
+                        : 'bg-[rgba(255,215,0,0.12)] text-[#ffd700]'
+                      }`}>
+                        {b.escrow_status}
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex gap-1">
-                        {b.status === 'requested' && (
-                          <button onClick={() => updateStatus(b.id, 'assigned')} className="px-2 py-1 text-xs bg-[rgba(0,180,255,0.12)] text-[#00b4ff] rounded cursor-pointer hover:bg-[rgba(0,180,255,0.2)]">📌</button>
-                        )}
-                        {b.status === 'assigned' && (
-                          <button onClick={() => updateStatus(b.id, 'in_progress')} className="px-2 py-1 text-xs bg-[rgba(0,210,142,0.12)] text-[#00d28e] rounded cursor-pointer hover:bg-[rgba(0,210,142,0.2)]">🔄</button>
-                        )}
-                        {b.status === 'in_progress' && (
-                          <button onClick={() => updateStatus(b.id, 'completed')} className="px-2 py-1 text-xs bg-[rgba(0,210,142,0.12)] text-[#00d28e] rounded cursor-pointer hover:bg-[rgba(0,210,142,0.2)]">✅</button>
-                        )}
-                        {b.status === 'completed' && (
-                          <button onClick={() => updateStatus(b.id, 'reviewed')} className="px-2 py-1 text-xs bg-[rgba(255,215,0,0.12)] text-[#ffd700] rounded cursor-pointer hover:bg-[rgba(255,215,0,0.2)]">⭐</button>
-                        )}
-                        {(b.status === 'requested' || b.status === 'assigned') && (
-                          <button onClick={() => updateStatus(b.id, 'cancelled')} className="px-2 py-1 text-xs bg-[rgba(255,80,80,0.12)] text-[#ff5050] rounded cursor-pointer hover:bg-[rgba(255,80,80,0.2)]">✕</button>
-                        )}
-                      </div>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold status-${b.status}`}>
+                        {b.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        b.inspection_status === 'approved' ? 'bg-[rgba(0,210,142,0.12)] text-[#00d28e]'
+                        : b.inspection_status === 'flagged' ? 'bg-[rgba(255,80,80,0.12)] text-[#ff5050]'
+                        : 'bg-[rgba(255,215,0,0.12)] text-[#ffd700]'
+                      }`}>
+                        {b.inspection_status}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -193,105 +353,6 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="bg-[#141414] border border-[#222] rounded-2xl p-7 w-[480px] max-w-[94vw] max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold text-[#00d28e] mb-5">New Booking</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-[#aaa] block mb-1">Customer</label>
-                <select
-                  value={form.customer_name}
-                  onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                >
-                  <option value="">Select customer</option>
-                  {customers.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.profiles?.name || c.id}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-[#aaa] block mb-1">Cleaner</label>
-                <select
-                  value={form.cleaner_id}
-                  onChange={(e) => setForm({ ...form, cleaner_id: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                >
-                  <option value="">Auto-assign later</option>
-                  {cleaners.filter((c: any) => c.status === 'active').map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.profiles?.name || c.id}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-[#aaa] block mb-1">Service</label>
-                  <select
-                    value={form.service_type}
-                    onChange={(e) => setForm({ ...form, service_type: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  >
-                    <option value="standard">Standard Clean</option>
-                    <option value="deep">Deep Clean</option>
-                    <option value="move">Move-Out/In</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-[#aaa] block mb-1">Amount ($)</label>
-                  <input
-                    type="number"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-[#aaa] block mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-[#aaa] block mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={form.time}
-                    onChange={(e) => setForm({ ...form, time: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-[#aaa] block mb-1">Address</label>
-                <input
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-[#aaa] block mb-1">Notes</label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e] resize-none h-16"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-[#1a1a1a] text-sm rounded-lg hover:bg-[#2a2a2a] cursor-pointer">Cancel</button>
-              <button onClick={createBooking} className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold text-sm rounded-lg hover:bg-[#00e89c] cursor-pointer">Create Booking</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

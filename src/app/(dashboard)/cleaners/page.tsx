@@ -8,7 +8,7 @@ import type { Cleaner } from '@/lib/supabase'
 export default function CleanersPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
-  const [cleaners, setCleaners] = useState<Cleaner[]>([])
+  const [cleaners, setCleaners] = useState<any[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -18,7 +18,7 @@ export default function CleanersPage() {
     email: '',
     bio: '',
     services: 'standard',
-    status: 'active',
+    active: true,
     verified: false,
   })
 
@@ -31,12 +31,12 @@ export default function CleanersPage() {
   async function loadCleaners() {
     if (!supabase) return
     const { data } = await supabase.from('cleaners').select('*, profiles!inner(name, email, phone)')
-    if (data) setCleaners(data as any)
+    if (data) setCleaners(data)
   }
 
   function openAdd() {
     setEditId(null)
-    setForm({ name: '', business: '', phone: '', email: '', bio: '', services: 'standard', status: 'active', verified: false })
+    setForm({ name: '', business: '', phone: '', email: '', bio: '', services: 'standard', active: true, verified: false })
     setShowModal(true)
   }
 
@@ -49,8 +49,8 @@ export default function CleanersPage() {
       email: c.profiles?.email || '',
       bio: c.bio || '',
       services: c.services?.[0] || 'standard',
-      status: c.status,
-      verified: c.is_verified,
+      active: c.active,
+      verified: c.verified,
     })
     setShowModal(true)
   }
@@ -63,29 +63,28 @@ export default function CleanersPage() {
         business: form.business,
         bio: form.bio,
         services: [form.services],
-        status: form.status,
-        is_verified: form.verified,
+        active: form.active,
+        verified: form.verified,
       }).eq('id', editId)
     }
     await loadCleaners()
     setShowModal(false)
   }
 
-  async function toggleStatus(id: string, current: string) {
+  async function toggleActive(id: string, current: boolean) {
     if (!supabase) return
-    const next = current === 'active' ? 'suspended' : 'active'
-    await supabase.from('cleaners').update({ status: next }).eq('id', id)
+    await supabase.from('cleaners').update({ active: !current }).eq('id', id)
     await loadCleaners()
   }
 
   async function toggleVerify(id: string, current: boolean) {
     if (!supabase) return
-    await supabase.from('cleaners').update({ is_verified: !current }).eq('id', id)
+    await supabase.from('cleaners').update({ verified: !current }).eq('id', id)
     await loadCleaners()
   }
 
-  const active = cleaners.filter((c) => c.status === 'active').length
-  const verified = cleaners.filter((c) => c.is_verified).length
+  const active = cleaners.filter((c) => c.active).length
+  const verified = cleaners.filter((c) => c.verified).length
 
   return (
     <div className="p-8">
@@ -118,7 +117,7 @@ export default function CleanersPage() {
         <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
           <div className="text-xs text-[#888]">Earnings</div>
           <div className="text-2xl font-bold text-white">
-            ${cleaners.reduce((s, c) => s + c.total_earnings, 0).toFixed(0)}
+            ${cleaners.reduce((s, c) => s + (c.total_earnings || 0), 0).toFixed(0)}
           </div>
         </div>
       </div>
@@ -151,41 +150,22 @@ export default function CleanersPage() {
                     <td className="py-3 px-4 text-[#888]">{c.business || '—'}</td>
                     <td className="py-3 px-4 text-[#888]">{c.profiles?.phone || '—'}</td>
                     <td className="py-3 px-4">
-                      <span className={`status-${c.status} inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold`}>
-                        {c.status}
-                        {c.is_verified && (
-                          <span className="ml-1 text-[#00d28e]">✓</span>
-                        )}
+                      <span className={`${c.active ? 'text-[#00d28e]' : 'text-[#ff5050]'} inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-${c.active ? '[rgba(0,210,142,0.12)]' : '[rgba(255,80,80,0.12)]'}`}>
+                        {c.active ? 'Active' : 'Suspended'}
+                        {c.verified && <span className="ml-1 text-[#00d28e]">✓</span>}
                       </span>
-                      {!c.is_verified && (
-                        <button
-                          onClick={() => toggleVerify(c.id, c.is_verified)}
-                          className="ml-1 text-[#ffd700] text-xs hover:underline cursor-pointer"
-                        >
-                          ○
-                        </button>
+                      {!c.verified && (
+                        <button onClick={() => toggleVerify(c.id, c.verified)} className="ml-1 text-[#ffd700] text-xs hover:underline cursor-pointer">○</button>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-[#ffd700]">{c.rating.toFixed(1)}</td>
-                    <td className="py-3 px-4">{c.total_jobs}</td>
-                    <td className="py-3 px-4">${c.total_earnings.toFixed(0)}</td>
+                    <td className="py-3 px-4 text-[#ffd700]">{c.rating?.toFixed(1) || '—'}</td>
+                    <td className="py-3 px-4">{c.completed_jobs || 0}</td>
+                    <td className="py-3 px-4">${(c.total_earnings || 0).toFixed(0)}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => openEdit(c)}
-                          className="px-2.5 py-1 bg-[#1a1a1a] text-xs rounded-md hover:bg-[#2a2a2a] cursor-pointer"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => toggleStatus(c.id, c.status)}
-                          className={`px-2.5 py-1 text-xs rounded-md cursor-pointer ${
-                            c.status === 'active'
-                              ? 'bg-[rgba(255,80,80,0.12)] text-[#ff5050] hover:bg-[rgba(255,80,80,0.2)]'
-                              : 'bg-[#1a1a1a] text-[#888] hover:bg-[#2a2a2a]'
-                          }`}
-                        >
-                          {c.status === 'active' ? '⛔' : '✅'}
+                        <button onClick={() => openEdit(c)} className="px-2.5 py-1 bg-[#1a1a1a] text-xs rounded-md hover:bg-[#2a2a2a] cursor-pointer">✏️</button>
+                        <button onClick={() => toggleActive(c.id, c.active)} className={`px-2.5 py-1 text-xs rounded-md cursor-pointer ${c.active ? 'bg-[rgba(255,80,80,0.12)] text-[#ff5050]' : 'bg-[#1a1a1a] text-[#888]'}`}>
+                          {c.active ? '⛔' : '✅'}
                         </button>
                       </div>
                     </td>
@@ -198,65 +178,36 @@ export default function CleanersPage() {
       </div>
 
       {showModal && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center"
-          onClick={(e) => e.target === e.currentTarget && setShowModal(false)}
-        >
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
           <div className="bg-[#141414] border border-[#222] rounded-2xl p-7 w-[480px] max-w-[94vw] max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold text-[#00d28e] mb-5">
-              {editId ? 'Edit' : 'Add'} Cleaner
-            </h2>
+            <h2 className="text-lg font-bold text-[#00d28e] mb-5">{editId ? 'Edit' : 'Add'} Cleaner</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-[#aaa] block mb-1">Full Name</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                />
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]" />
               </div>
               <div>
                 <label className="text-xs font-medium text-[#aaa] block mb-1">Business Name</label>
-                <input
-                  value={form.business}
-                  onChange={(e) => setForm({ ...form, business: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                />
+                <input value={form.business} onChange={(e) => setForm({ ...form, business: e.target.value })} className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-[#aaa] block mb-1">Phone</label>
-                  <input
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  />
+                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-[#aaa] block mb-1">Email</label>
-                  <input
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  />
+                  <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]" />
                 </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-[#aaa] block mb-1">Bio / Services</label>
-                <textarea
-                  value={form.bio}
-                  onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e] resize-none h-20"
-                />
+                <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e] resize-none h-20" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-[#aaa] block mb-1">Services</label>
-                  <select
-                    value={form.services}
-                    onChange={(e) => setForm({ ...form, services: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  >
+                  <select value={form.services} onChange={(e) => setForm({ ...form, services: e.target.value })} className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]">
                     <option value="standard">Standard Clean</option>
                     <option value="deep">Deep Clean</option>
                     <option value="move">Move-Out/In</option>
@@ -265,39 +216,20 @@ export default function CleanersPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-[#aaa] block mb-1">Status</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                  >
+                  <select value={form.active ? 'active' : 'suspended'} onChange={(e) => setForm({ ...form, active: e.target.value === 'active' })} className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]">
                     <option value="active">Active</option>
                     <option value="suspended">Suspended</option>
                   </select>
                 </div>
               </div>
               <label className="flex items-center gap-2 text-sm text-[#aaa] cursor-pointer pt-2">
-                <input
-                  type="checkbox"
-                  checked={form.verified}
-                  onChange={(e) => setForm({ ...form, verified: e.target.checked })}
-                  className="accent-[#00d28e]"
-                />
+                <input type="checkbox" checked={form.verified} onChange={(e) => setForm({ ...form, verified: e.target.checked })} className="accent-[#00d28e]" />
                 Verified (official registration)
               </label>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 bg-[#1a1a1a] text-sm rounded-lg hover:bg-[#2a2a2a] cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={save}
-                className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold text-sm rounded-lg hover:bg-[#00e89c] cursor-pointer"
-              >
-                {editId ? 'Update' : 'Add Cleaner'}
-              </button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-[#1a1a1a] text-sm rounded-lg hover:bg-[#2a2a2a] cursor-pointer">Cancel</button>
+              <button onClick={save} className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold text-sm rounded-lg hover:bg-[#00e89c] cursor-pointer">{editId ? 'Update' : 'Add Cleaner'}</button>
             </div>
           </div>
         </div>

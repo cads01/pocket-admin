@@ -22,12 +22,15 @@ export type Cleaner = {
   bio: string | null
   services: string[]
   hourly_rate: number
-  is_verified: boolean
-  status: 'active' | 'suspended'
+  verified: boolean
+  active: boolean
   rating: number
-  total_jobs: number
+  completed_jobs: number
   total_earnings: number
   stripe_account_id: string | null
+  experience: string | null
+  video_profile_url: string | null
+  route_preferences: Record<string, any>
   created_at: string
 }
 
@@ -43,17 +46,108 @@ export type Customer = {
 
 export type Booking = {
   id: string
-  cleaner_id: string
   customer_id: string
+  cleaner_id: string
   status: 'requested' | 'assigned' | 'in_progress' | 'completed' | 'reviewed' | 'cancelled'
-  service_type: string
   scheduled_date: string
-  scheduled_time: string
+  duration: number
   amount: number
   platform_fee: number
-  cleaner_payout: number
+  cleaner_amount: number
   address: string | null
   notes: string | null
+  payment_intent_id: string | null
+  payment_status: string
+  escrow_status: 'held' | 'approved' | 'released' | 'disputed'
+  inspection_status: 'pending' | 'approved' | 'flagged'
+  recovery_deadline: string | null
+  recovery_status: 'none' | 'requested' | 'in_progress' | 'resolved'
+  created_at: string
+}
+
+export type BookingTask = {
+  id: string
+  booking_id: string
+  room: string
+  task: string
+  is_completed: boolean
+  completed_at: string | null
+  sort_order: number
+  created_at: string
+}
+
+export type TaskPhoto = {
+  id: string
+  booking_id: string
+  task_id: string | null
+  photo_type: 'before' | 'after'
+  url: string
+  uploaded_by: string | null
+  created_at: string
+}
+
+export type CleanerLocation = {
+  id: string
+  cleaner_id: string
+  booking_id: string | null
+  lat: number
+  lng: number
+  heading: number | null
+  speed: number | null
+  is_en_route: boolean
+  updated_at: string
+}
+
+export type EscrowTransaction = {
+  id: string
+  booking_id: string
+  amount: number
+  status: 'held' | 'approved' | 'released' | 'refunded'
+  stripe_transfer_id: string | null
+  held_at: string
+  released_at: string | null
+  created_at: string
+}
+
+export type InspectionReport = {
+  id: string
+  booking_id: string
+  client_approved: boolean
+  flagged_areas: string[]
+  client_notes: string | null
+  reviewed_at: string | null
+  created_at: string
+}
+
+export type Dispute = {
+  id: string
+  booking_id: string
+  raised_by: string
+  dispute_type: 'scope_creep' | 'missed_area' | 'quality' | 'other'
+  description: string
+  status: 'open' | 'in_review' | 'resolved' | 'dismissed'
+  resolution: string | null
+  partial_credit: number | null
+  created_at: string
+  resolved_at: string | null
+}
+
+export type DisputeMessage = {
+  id: string
+  dispute_id: string
+  sender_id: string
+  message: string
+  created_at: string
+}
+
+export type CleanerVideo = {
+  id: string
+  cleaner_id: string
+  title: string | null
+  url: string
+  video_type: 'youtube' | 'tiktok' | 'upload'
+  thumbnail_url: string | null
+  is_published: boolean
   created_at: string
 }
 
