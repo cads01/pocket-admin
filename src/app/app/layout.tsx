@@ -7,7 +7,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import Link from 'next/link'
 
 const NAV_ITEMS = [
-  { icon: '📊', label: 'Dashboard', href: '/' },
+  { icon: '📊', label: 'Dashboard', href: '/app' },
   { icon: '📅', label: 'Bookings', href: '/bookings' },
   { icon: '🧹', label: 'Cleaners', href: '/cleaners' },
   { icon: '👥', label: 'Clients', href: '/clients' },
@@ -41,7 +41,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         } bg-[#0d0d0d] border-r border-[#161616] flex flex-col transition-all duration-200 flex-shrink-0`}
       >
         <div className="p-5 border-b border-[#161616]">
-          <Link href="/" className="no-underline">
+          <Link href="/app" className="no-underline">
             <h1 className={`font-bold tracking-tight ${collapsed ? 'text-center text-lg' : 'text-xl'}`}>
               {collapsed ? (
                 <span className="text-[#00d28e]">P</span>

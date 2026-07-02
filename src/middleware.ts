@@ -33,7 +33,7 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith('/signup') ||
     req.nextUrl.pathname.startsWith('/book')
 
-  const isProtected = req.nextUrl.pathname === '/' ||
+  const isProtected = req.nextUrl.pathname.startsWith('/app') ||
     req.nextUrl.pathname.startsWith('/cleaner') ||
     req.nextUrl.pathname.startsWith('/cleaners') ||
     req.nextUrl.pathname.startsWith('/customer') ||

@@ -53,7 +53,7 @@ export default function SignupPage() {
       }
     }
 
-    router.push('/')
+    router.push('/app')
     setLoading(false)
   }
 
