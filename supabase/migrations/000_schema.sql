@@ -173,10 +173,10 @@ create policy "Parties view task_photos" on task_photos for select using (
 -- 7. CLEANER_LOCATIONS (real-time GPS)
 create table cleaner_locations (
   id uuid default gen_random_uuid() primary key,
-  cleaner_id uuid references cleaners(id) on delete cascade not null,
+  cleaner_id uuid references cleaners(id) on delete cascade not null unique,
   booking_id uuid references bookings(id) on delete cascade,
-  lat numeric(10,7) not null,
-  lng numeric(10,7) not null,
+  latitude numeric(10,7) not null,
+  longitude numeric(10,7) not null,
   heading numeric(5,2),
   speed numeric(5,2),
   is_en_route boolean default false,
@@ -190,7 +190,10 @@ create policy "Parties view locations" on cleaner_locations for select using (
     where b.id = cleaner_locations.booking_id
     and (cl.profile_id = auth.uid() or cu.profile_id = auth.uid()))
 );
-create policy "Cleaner update location" on cleaner_locations for insert or update using (
+create policy "Cleaner upsert location" on cleaner_locations for insert with check (
+  exists (select 1 from cleaners where id = cleaner_locations.cleaner_id and profile_id = auth.uid())
+);
+create policy "Cleaner update location" on cleaner_locations for update using (
   exists (select 1 from cleaners where id = cleaner_locations.cleaner_id and profile_id = auth.uid())
 );
 
