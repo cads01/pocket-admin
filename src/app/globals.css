@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #0a0a0a;
+  --color-foreground: #ededed;
+  --color-card: #111111;
+  --color-card-border: #1a1a1a;
+  --color-accent: #00d28e;
+  --color-accent-hover: #00e89c;
+  --color-muted: #888888;
+  --color-muted-foreground: #555555;
+  --color-danger: #ff5050;
+  --color-warning: #ffd700;
+  --color-info: #0096d6;
+  --color-purple: #8b5cf6;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: #0a0a0a;
+  color: #ededed;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a transparent;
+}
+
+.status-active { background: rgba(0, 210, 142, 0.15); color: #00d28e; }
+.status-trial { background: rgba(255, 215, 0, 0.15); color: #ffd700; }
+.status-pending { background: rgba(255, 215, 0, 0.15); color: #ffd700; }
+.status-paid { background: rgba(0, 210, 142, 0.15); color: #00d28e; }
+.status-overdue { background: rgba(255, 80, 80, 0.15); color: #ff5050; }
+.status-churned { background: rgba(255, 80, 80, 0.15); color: #ff5050; }
+.status-requested { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+.status-assigned { background: rgba(0, 180, 255, 0.12); color: #00b4ff; }
+.status-in_progress { background: rgba(0, 210, 142, 0.12); color: #00d28e; }
+.status-completed { background: rgba(255, 215, 0, 0.12); color: #ffd700; }
+.status-reviewed { background: rgba(0, 240, 255, 0.1); color: #00f0ff; }
+.status-cancelled { background: rgba(255, 80, 80, 0.12); color: #ff5050; }
+.status-suspended { background: rgba(255, 80, 80, 0.12); color: #ff5050; }
