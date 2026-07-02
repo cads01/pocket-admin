@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function SettingsPage() {
   const { supabase, user, loading } = useSupabase()
@@ -10,6 +11,7 @@ export default function SettingsPage() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -19,6 +21,7 @@ export default function SettingsPage() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -28,6 +31,7 @@ export default function SettingsPage() {
       setName(data.name || '')
       setPhone(data.phone || '')
     }
+    setPageLoading(false)
   }
 
   async function save() {
@@ -39,7 +43,11 @@ export default function SettingsPage() {
 
   return (
     <div className="p-8 max-w-2xl">
-      <div className="mb-6">
+      {pageLoading ? (
+        <LoadingSkeleton type="card" />
+      ) : (
+        <>
+          <div className="mb-6">
         <h2 className="text-xl font-bold">Settings</h2>
         <p className="text-sm text-[#888]">Platform configuration</p>
       </div>
@@ -93,6 +101,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

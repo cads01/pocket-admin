@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { CleanerVideo } from '@/lib/supabase'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function VideosPage() {
   const { supabase, user, loading } = useSupabase()
@@ -14,6 +15,7 @@ export default function VideosPage() {
   const [title, setTitle] = useState('')
   const [cleanerId, setCleanerId] = useState('')
   const [videoType, setVideoType] = useState<'youtube' | 'tiktok' | 'upload'>('youtube')
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -23,11 +25,13 @@ export default function VideosPage() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase
       .from('cleaner_videos')
       .select('*')
       .order('created_at', { ascending: false })
     if (data) setVideos(data)
+    setPageLoading(false)
   }
 
   async function addVideo() {
@@ -52,7 +56,13 @@ export default function VideosPage() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="card" />
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold">Cleaner Videos</h2>
           <p className="text-sm text-[#888]">YouTube & story integration for cleaner profiles</p>

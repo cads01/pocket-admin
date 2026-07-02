@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import type { Booking, Cleaner, Customer, Profile } from '@/lib/supabase'
 import { fmtDate, fmtTime } from '@/lib/utils'
 import CleanerMap from '@/components/CleanerMap'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function DashboardPage() {
   const { supabase, user, loading } = useSupabase()
@@ -69,8 +70,14 @@ export default function DashboardPage() {
 
   if (loading || !profile) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-[#888]">Loading...</p>
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <LoadingSkeleton type="text" />
+          </div>
+        </div>
+        <LoadingSkeleton type="stats" />
+        <LoadingSkeleton type="table" />
       </div>
     )
   }

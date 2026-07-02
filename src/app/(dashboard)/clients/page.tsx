@@ -5,11 +5,13 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { Customer } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function ClientsPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
   const [customers, setCustomers] = useState<any[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -19,8 +21,10 @@ export default function ClientsPage() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase.from('customers').select('*, profiles!inner(name, email, phone)')
     if (data) setCustomers(data as any)
+    setPageLoading(false)
   }
 
   const active = customers.filter((c) => c.total_jobs > 0).length
@@ -28,7 +32,14 @@ export default function ClientsPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="stats" />
+          <LoadingSkeleton type="table" />
+        </div>
+      ) : (
+        <>
+          <div className="mb-6">
         <h2 className="text-xl font-bold">Clients</h2>
         <p className="text-sm text-[#888]">End customers looking for cleaning services</p>
       </div>
@@ -81,6 +92,8 @@ export default function ClientsPage() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

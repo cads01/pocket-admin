@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SupabaseProvider, useSupabase } from '@/components/SupabaseProvider'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import Link from 'next/link'
 
 const NAV_ITEMS = [
@@ -90,7 +91,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="flex-1 overflow-y-auto">
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </main>
     </div>
   )

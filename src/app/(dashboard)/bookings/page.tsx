@@ -5,6 +5,7 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { Booking, BookingTask, TaskPhoto, Cleaner } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 const DEFAULT_ROOMS = [
   { room: 'Kitchen', tasks: ['Countertops & surfaces', 'Sink & faucet', 'Stovetop & range', 'Microwave interior', 'Cabinet exteriors', 'Sweep & mop floor', 'Take out trash'] },
@@ -30,6 +31,7 @@ export default function BookingWizard() {
     DEFAULT_ROOMS.map(r => ({ room: r.room, tasks: r.tasks.map(t => ({ task: t, checked: true })) }))
   )
   const [submitting, setSubmitting] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -39,6 +41,7 @@ export default function BookingWizard() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data: b } = await supabase
       .from('bookings')
       .select('*')
@@ -48,6 +51,7 @@ export default function BookingWizard() {
 
     const { data: c } = await supabase.from('cleaners').select('*').eq('verified', true)
     if (c) setCleaners(c)
+    setPageLoading(false)
   }
 
   async function createBooking() {
@@ -114,7 +118,14 @@ export default function BookingWizard() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="stats" />
+          <LoadingSkeleton type="table" />
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold">Bookings</h2>
           <p className="text-sm text-[#888]">Room-by-room booking wizard</p>
@@ -353,6 +364,8 @@ export default function BookingWizard() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

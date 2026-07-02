@@ -5,6 +5,7 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { Dispute, DisputeMessage } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function DisputesPage() {
   const { supabase, user, loading } = useSupabase()
@@ -15,6 +16,7 @@ export default function DisputesPage() {
   const [newMsg, setNewMsg] = useState('')
   const [resolution, setResolution] = useState('')
   const [partialCredit, setPartialCredit] = useState('')
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -24,11 +26,13 @@ export default function DisputesPage() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase
       .from('disputes')
       .select('*')
       .order('created_at', { ascending: false })
     if (data) setDisputes(data)
+    setPageLoading(false)
   }
 
   async function selectDispute(d: Dispute) {
@@ -83,7 +87,14 @@ export default function DisputesPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="stats" />
+          <LoadingSkeleton type="card" />
+        </div>
+      ) : (
+        <>
+          <div className="mb-6">
         <h2 className="text-xl font-bold">Disputes</h2>
         <p className="text-sm text-[#888]">Scope creep, quality issues, and service recovery</p>
       </div>
@@ -213,6 +224,8 @@ export default function DisputesPage() {
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

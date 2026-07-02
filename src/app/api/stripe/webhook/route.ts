@@ -58,5 +58,10 @@ export async function POST(req: Request) {
     }
   }
 
+  if (event.type === 'transfer.created') {
+    const transfer = event.data.object as any
+    console.log('Transfer created:', transfer.id)
+  }
+
   return NextResponse.json({ received: true })
 }

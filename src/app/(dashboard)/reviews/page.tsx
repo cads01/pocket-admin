@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import { fmtDate } from '@/lib/utils'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function ReviewsPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
   const [reviews, setReviews] = useState<any[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -18,11 +20,13 @@ export default function ReviewsPage() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase
       .from('reviews')
       .select('*')
       .order('created_at', { ascending: false })
     if (data) setReviews(data)
+    setPageLoading(false)
   }
 
   const avg = reviews.length
@@ -33,7 +37,14 @@ export default function ReviewsPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="stats" />
+          <LoadingSkeleton type="table" />
+        </div>
+      ) : (
+        <>
+          <div className="mb-6">
         <h2 className="text-xl font-bold">Reviews</h2>
         <p className="text-sm text-[#888]">Ratings and feedback</p>
       </div>
@@ -84,6 +95,8 @@ export default function ReviewsPage() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

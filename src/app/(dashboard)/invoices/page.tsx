@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import { fmtDate } from '@/lib/utils'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function InvoicesPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
   const [invoices, setInvoices] = useState<any[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -18,11 +20,13 @@ export default function InvoicesPage() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase
       .from('bookings')
       .select('*')
       .order('created_at', { ascending: false })
     if (data) setInvoices(data)
+    setPageLoading(false)
   }
 
   const paid = invoices.filter((i) => i.status === 'completed' || i.status === 'reviewed')
@@ -30,7 +34,14 @@ export default function InvoicesPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="stats" />
+          <LoadingSkeleton type="table" />
+        </div>
+      ) : (
+        <>
+          <div className="mb-6">
         <h2 className="text-xl font-bold">Invoices</h2>
         <p className="text-sm text-[#888]">Payment tracking</p>
       </div>
@@ -93,6 +104,8 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

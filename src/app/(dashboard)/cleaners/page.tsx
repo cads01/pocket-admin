@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { Cleaner } from '@/lib/supabase'
+import CleanerMap from '@/components/CleanerMap'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
+
+interface CleanerLocation {
+  cleaner_id: string
+  latitude: number
+  longitude: number
+  updated_at: string
+}
 
 export default function CleanersPage() {
   const { supabase, user, loading } = useSupabase()
@@ -11,6 +21,51 @@ export default function CleanersPage() {
   const [cleaners, setCleaners] = useState<any[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [locations, setLocations] = useState<Map<string, CleanerLocation>>(new Map())
+  const [pageLoading, setPageLoading] = useState(true)
+
+  useEffect(() => {
+    if (!supabase) return
+    loadLocations()
+
+    const channel = supabase
+      .channel('cleaner-locations-page')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'cleaner_locations' },
+        (payload: RealtimePostgresChangesPayload<CleanerLocation>) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const r = payload.new as CleanerLocation
+            setLocations((prev) => {
+              const next = new Map(prev)
+              next.set(r.cleaner_id, r)
+              return next
+            })
+          }
+          if (payload.eventType === 'DELETE') {
+            const r = payload.old as CleanerLocation
+            setLocations((prev) => {
+              const next = new Map(prev)
+              next.delete(r.cleaner_id)
+              return next
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { void supabase.removeChannel(channel) }
+  }, [supabase])
+
+  async function loadLocations() {
+    if (!supabase) return
+    const { data: locs } = await supabase.from('cleaner_locations').select('*')
+    if (locs) {
+      const map = new Map<string, CleanerLocation>()
+      for (const loc of locs) map.set(loc.cleaner_id, loc)
+      setLocations(map)
+    }
+  }
+
   const [form, setForm] = useState({
     name: '',
     business: '',
@@ -30,8 +85,10 @@ export default function CleanersPage() {
 
   async function loadCleaners() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase.from('cleaners').select('*, profiles!inner(name, email, phone)')
     if (data) setCleaners(data)
+    setPageLoading(false)
   }
 
   function openAdd() {
@@ -88,7 +145,14 @@ export default function CleanersPage() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="stats" />
+          <LoadingSkeleton type="table" />
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold">Cleaners</h2>
           <p className="text-sm text-[#888]">Service providers on the platform</p>
@@ -122,6 +186,8 @@ export default function CleanersPage() {
         </div>
       </div>
 
+      <CleanerMap />
+
       <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
         {cleaners.length === 0 ? (
           <div className="text-center py-16 text-[#555]">
@@ -137,6 +203,7 @@ export default function CleanersPage() {
                   <th className="text-left py-3 px-4">Business</th>
                   <th className="text-left py-3 px-4">Phone</th>
                   <th className="text-left py-3 px-4">Status</th>
+                  <th className="text-left py-3 px-4">Location</th>
                   <th className="text-left py-3 px-4">Rating</th>
                   <th className="text-left py-3 px-4">Jobs</th>
                   <th className="text-left py-3 px-4">Earnings</th>
@@ -157,6 +224,23 @@ export default function CleanersPage() {
                       {!c.verified && (
                         <button onClick={() => toggleVerify(c.id, c.verified)} className="ml-1 text-[#ffd700] text-xs hover:underline cursor-pointer">○</button>
                       )}
+                    </td>
+                    <td className="py-3 px-4">
+                      {(() => {
+                        const loc = locations.get(c.id)
+                        const recent = loc && Date.now() - new Date(loc.updated_at).getTime() < 5 * 60 * 1000
+                        return recent ? (
+                          <span className="flex items-center gap-1.5" title={`${loc!.latitude.toFixed(4)}, ${loc!.longitude.toFixed(4)}`}>
+                            <span className="w-2 h-2 rounded-full bg-[#00d28e] animate-pulse" />
+                            <span className="text-[#00d28e] text-xs font-medium">Live</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#555]" />
+                            <span className="text-[#555] text-xs">Offline</span>
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="py-3 px-4 text-[#ffd700]">{c.rating?.toFixed(1) || '—'}</td>
                     <td className="py-3 px-4">{c.completed_jobs || 0}</td>
@@ -233,6 +317,8 @@ export default function CleanersPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   )

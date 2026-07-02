@@ -5,6 +5,7 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { Booking, BookingTask, TaskPhoto } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 
 export default function InspectionPortal() {
   const { supabase, user, loading } = useSupabase()
@@ -19,6 +20,7 @@ export default function InspectionPortal() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadType, setUploadType] = useState<'before' | 'after'>('before')
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     if (loading) return
@@ -28,12 +30,14 @@ export default function InspectionPortal() {
 
   async function load() {
     if (!supabase) return
+    setPageLoading(true)
     const { data } = await supabase
       .from('bookings')
       .select('*')
       .in('status', ['completed', 'reviewed'])
       .order('created_at', { ascending: false })
     if (data) setBookings(data)
+    setPageLoading(false)
   }
 
   async function selectBooking(b: Booking) {
@@ -89,10 +93,16 @@ export default function InspectionPortal() {
     })
 
     if (approved) {
-      await supabase
-        .from('bookings')
-        .update({ inspection_status: 'approved', status: 'reviewed', escrow_status: 'approved' })
-        .eq('id', selectedBooking.id)
+      const res = await fetch('/api/stripe/escrow-release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: selectedBooking.id }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        alert('Payment release failed: ' + (data.error || 'Unknown error'))
+        return
+      }
     } else {
       await supabase
         .from('bookings')
@@ -113,7 +123,14 @@ export default function InspectionPortal() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
+      {pageLoading ? (
+        <div className="space-y-6">
+          <LoadingSkeleton type="stats" />
+          <LoadingSkeleton type="card" />
+        </div>
+      ) : (
+        <>
+          <div className="mb-6">
         <h2 className="text-xl font-bold">Inspection Portal</h2>
         <p className="text-sm text-[#888]">Review completed work with before/after photos</p>
       </div>
@@ -323,6 +340,8 @@ export default function InspectionPortal() {
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }
