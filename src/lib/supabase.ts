@@ -170,3 +170,27 @@ export type Payout = {
   paid_at: string | null
   created_at: string
 }
+
+export type WaitlistSignup = {
+  id: string
+  name: string
+  business: string | null
+  email: string | null
+  phone: string | null
+  team_size: number
+  pain_point: string | null
+  signed_up_at: string
+}
+
+export type ManagedClient = {
+  id: string
+  name: string
+  business: string | null
+  phone: string | null
+  schedule: string | null
+  price_per_job: number
+  since: string
+  mrr: number
+  status: 'active' | 'trial' | 'churned'
+  created_at: string
+}
