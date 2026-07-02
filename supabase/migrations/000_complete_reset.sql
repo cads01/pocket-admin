@@ -35,7 +35,7 @@ alter table profiles enable row level security;
 create policy "Users view own profile" on profiles for select using (auth.uid() = id);
 create policy "Users update own profile" on profiles for update using (auth.uid() = id);
 create policy "Admin view all profiles" on profiles for select using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  auth.role() = 'authenticated'
 );
 
 create or replace function handle_new_user()
