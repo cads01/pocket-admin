@@ -360,6 +360,10 @@ insert into storage.buckets (id, name, public) values
   ('cleaner-avatars', 'cleaner-avatars', true)
 on conflict (id) do nothing;
 
+drop policy if exists "Authenticated users can upload task photos" on storage.objects;
+drop policy if exists "Booking parties can view task photos" on storage.objects;
+drop policy if exists "Authenticated users can upload avatars" on storage.objects;
+
 create policy "Authenticated users can upload task photos"
   on storage.objects for insert
   with check (bucket_id = 'task-photos' and auth.role() = 'authenticated');
