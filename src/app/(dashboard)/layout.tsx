@@ -6,14 +6,14 @@ import { SupabaseProvider, useSupabase } from '@/components/SupabaseProvider'
 import Link from 'next/link'
 
 const NAV_ITEMS = [
-  { icon: '📊', label: 'Dashboard', href: '/dashboard' },
-  { icon: '🧹', label: 'Cleaners', href: '/dashboard/cleaners' },
-  { icon: '👥', label: 'Clients', href: '/dashboard/clients' },
-  { icon: '📅', label: 'Bookings', href: '/dashboard/bookings' },
-  { icon: '💰', label: 'Invoices', href: '/dashboard/invoices' },
-  { icon: '⭐', label: 'Reviews', href: '/dashboard/reviews' },
-  { icon: '💸', label: 'Payouts', href: '/dashboard/payouts' },
-  { icon: '⚙️', label: 'Settings', href: '/dashboard/settings' },
+  { icon: '📊', label: 'Dashboard', href: '/' },
+  { icon: '🧹', label: 'Cleaners', href: '/cleaners' },
+  { icon: '👥', label: 'Clients', href: '/clients' },
+  { icon: '📅', label: 'Bookings', href: '/bookings' },
+  { icon: '💰', label: 'Invoices', href: '/invoices' },
+  { icon: '⭐', label: 'Reviews', href: '/reviews' },
+  { icon: '💸', label: 'Payouts', href: '/payouts' },
+  { icon: '⚙️', label: 'Settings', href: '/settings' },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -37,7 +37,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         } bg-[#0d0d0d] border-r border-[#161616] flex flex-col transition-all duration-200 flex-shrink-0`}
       >
         <div className="p-5 border-b border-[#161616]">
-          <Link href="/dashboard" className="no-underline">
+          <Link href="/" className="no-underline">
             <h1 className={`font-bold tracking-tight ${collapsed ? 'text-center text-lg' : 'text-xl'}`}>
               {collapsed ? (
                 <span className="text-[#00d28e]">P</span>

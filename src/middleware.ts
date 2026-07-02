@@ -33,11 +33,18 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith('/signup') ||
     req.nextUrl.pathname.startsWith('/book')
 
-  const isDashboard = req.nextUrl.pathname.startsWith('/dashboard') ||
+  const isProtected = req.nextUrl.pathname === '/' ||
     req.nextUrl.pathname.startsWith('/cleaner') ||
-    req.nextUrl.pathname.startsWith('/customer')
+    req.nextUrl.pathname.startsWith('/cleaners') ||
+    req.nextUrl.pathname.startsWith('/customer') ||
+    req.nextUrl.pathname.startsWith('/bookings') ||
+    req.nextUrl.pathname.startsWith('/clients') ||
+    req.nextUrl.pathname.startsWith('/invoices') ||
+    req.nextUrl.pathname.startsWith('/reviews') ||
+    req.nextUrl.pathname.startsWith('/payouts') ||
+    req.nextUrl.pathname.startsWith('/settings')
 
-  if (!user && isDashboard) {
+  if (!user && isProtected) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -45,7 +52,7 @@ export async function middleware(req: NextRequest) {
 
   if (user && isAuthPage) {
     const url = req.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/'
     return NextResponse.redirect(url)
   }
 
