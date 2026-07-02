@@ -5,6 +5,7 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { Booking, Cleaner, Customer, Profile } from '@/lib/supabase'
 import { fmtDate, fmtTime } from '@/lib/utils'
+import CleanerMap from '@/components/CleanerMap'
 
 export default function DashboardPage() {
   const { supabase, user, loading } = useSupabase()
@@ -155,6 +156,8 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          <CleanerMap />
 
           <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-6">
             <h3 className="font-semibold mb-4">Recent Bookings</h3>
