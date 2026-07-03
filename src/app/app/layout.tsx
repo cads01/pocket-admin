@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { SupabaseProvider, useSupabase } from '@/components/SupabaseProvider'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Link from 'next/link'
 import ToastProvider from '@/components/ui/ToastProvider'
+import RouteLoader from '@/components/RouteLoader'
 import {
   LayoutDashboard,
   Calendar,
@@ -126,7 +127,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto relative">
+        <Suspense fallback={null}>
+          <RouteLoader />
+        </Suspense>
         <ErrorBoundary>{children}</ErrorBoundary>
       </main>
     </div>
