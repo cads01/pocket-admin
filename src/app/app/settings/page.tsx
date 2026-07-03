@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
+import { RefreshCw, Save } from 'lucide-react'
 
 export default function SettingsPage() {
   const { supabase, user, loading } = useSupabase()
@@ -46,62 +50,46 @@ export default function SettingsPage() {
       {pageLoading ? (
         <LoadingSkeleton type="card" />
       ) : (
-        <>
+        <div className="space-y-6 animate-fade-in">
           <div className="mb-6">
-        <h2 className="text-xl font-bold">Settings</h2>
-        <p className="text-sm text-[#888]">Platform configuration</p>
-      </div>
+            <h2 className="text-xl font-bold text-foreground">Settings</h2>
+            <p className="text-sm text-muted">Platform configuration</p>
+          </div>
 
-      <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-6 mb-4">
-        <h3 className="font-semibold mb-4 text-[#00d28e]">Your Profile</h3>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-[#aaa] block mb-1">Name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[#aaa] block mb-1">Phone</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-              placeholder="(555) 123-4567"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[#aaa] block mb-1">Email</label>
-            <input
-              value={user?.email || ''}
-              disabled
-              className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-[#555] cursor-not-allowed"
-            />
-          </div>
-          <button
-            onClick={save}
-            disabled={saving}
-            className="px-5 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm hover:bg-[#00e89c] transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </div>
+          <Card padding="lg" className="animate-fade-in">
+            <h3 className="font-semibold mb-4 text-accent">Your Profile</h3>
+            <div className="space-y-3">
+              <Input
+                label="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <Input
+                label="Phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 123-4567"
+              />
+              <Input
+                label="Email"
+                value={user?.email || ''}
+                disabled
+              />
+              <Button onClick={save} disabled={saving} loading={saving} icon={Save}>
+                Save
+              </Button>
+            </div>
+          </Card>
 
-      <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-6">
-        <h3 className="font-semibold mb-4 text-[#ffd700]">Data</h3>
-        <div className="flex gap-3">
-          <button
-            onClick={() => router.refresh()}
-            className="px-4 py-2 bg-[#1a1a1a] text-sm rounded-lg hover:bg-[#2a2a2a] cursor-pointer"
-          >
-            Refresh
-          </button>
+          <Card padding="lg" className="animate-fade-in">
+            <h3 className="font-semibold mb-4 text-warning">Data</h3>
+            <div className="flex gap-3">
+              <Button onClick={() => router.refresh()} variant="secondary" icon={RefreshCw}>
+                Refresh
+              </Button>
+            </div>
+          </Card>
         </div>
-      </div>
-      </>
       )}
     </div>
   )

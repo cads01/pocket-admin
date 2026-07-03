@@ -5,6 +5,14 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter, useParams } from 'next/navigation'
 import type { Employee, EmployeeWarning, ClockEvent, PayrollRecord } from '@/lib/supabase'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
+import Card from '@/components/ui/Card'
+import StatsCard from '@/components/ui/StatsCard'
+import StatusBadge from '@/components/ui/StatusBadge'
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
+import Table from '@/components/ui/Table'
+import EmptyState from '@/components/ui/EmptyState'
+import { ArrowLeft, Clock, DollarSign, Star, AlertTriangle } from 'lucide-react'
 
 export default function EmployeeDetailPage() {
   const { supabase, user, loading } = useSupabase()
@@ -49,26 +57,6 @@ export default function EmployeeDetailPage() {
     )
   }
 
-  function statusBadge(status: string) {
-    const map: Record<string, { color: string; bg: string }> = {
-      active: { color: 'text-[#00d28e]', bg: 'bg-[rgba(0,210,142,0.12)]' },
-      suspended: { color: 'text-[#ffd700]', bg: 'bg-[rgba(255,215,0,0.12)]' },
-      terminated: { color: 'text-[#ff5050]', bg: 'bg-[rgba(255,80,80,0.12)]' },
-    }
-    const s = map[status] || map.active
-    return (
-      <span className={`${s.color} ${s.bg} inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    )
-  }
-
-  function severityBadge(severity: string) {
-    return severity === 'red'
-      ? 'bg-[rgba(255,80,80,0.12)] text-[#ff5050]'
-      : 'bg-[rgba(255,215,0,0.12)] text-[#ffd700]'
-  }
-
   function formatDate(d: string) {
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
@@ -87,7 +75,7 @@ export default function EmployeeDetailPage() {
     const full = Math.floor(rating)
     const half = rating - full >= 0.5
     return (
-      <span className="text-[#ffd700]">
+      <span className="text-warning">
         {'★'.repeat(full)}{half ? '½' : ''}{'☆'.repeat(5 - full - (half ? 1 : 0))}
       </span>
     )
@@ -105,46 +93,55 @@ export default function EmployeeDetailPage() {
 
   if (!employee) {
     return (
-      <div className="p-8 text-center text-[#555]">
+      <div className="p-8 text-center text-muted-foreground">
         <p>Employee not found.</p>
       </div>
     )
   }
 
-  const statCards = [
-    { label: 'Rating', value: employee.rating.toFixed(1), extra: renderStars(employee.rating), color: 'text-[#ffd700]' },
-    { label: 'Completion Rate', value: `${(employee.completion_rate * 100).toFixed(0)}%`, color: 'text-[#00d28e]' },
-    { label: 'Punctuality', value: `${(employee.punctuality_score * 100).toFixed(0)}%`, color: 'text-[#00d28e]' },
-    { label: 'Missed Jobs', value: employee.missed_jobs, color: employee.missed_jobs > 3 ? 'text-[#ff5050]' : 'text-white' },
-    { label: 'Total Jobs', value: employee.total_jobs, color: 'text-white' },
-    { label: 'Tenure', value: formatDate(employee.hire_date), color: 'text-[#888]' },
+  const clockColumns = [
+    { key: 'date', label: 'Date', render: (ce: ClockEvent) => <span className="text-muted">{formatDate(ce.clock_in)}</span> },
+    { key: 'clock_in', label: 'Clock In', render: (ce: ClockEvent) => formatTime(ce.clock_in) },
+    { key: 'clock_out', label: 'Clock Out', render: (ce: ClockEvent) => ce.clock_out ? formatTime(ce.clock_out) : <span className="text-accent">Active</span> },
+    { key: 'duration', label: 'Duration', render: (ce: ClockEvent) => <div className="text-right">{ce.duration_minutes ? formatDuration(ce.duration_minutes) : '—'}</div> },
+  ]
+
+  const payrollColumns = [
+    { key: 'period', label: 'Period', render: (pr: PayrollRecord) => <span className="text-muted text-xs">{formatDate(pr.period_start)} – {formatDate(pr.period_end)}</span> },
+    { key: 'hours', label: 'Hours', render: (pr: PayrollRecord) => <div className="text-right">{pr.hours_worked.toFixed(1)}</div> },
+    { key: 'jobs', label: 'Jobs', render: (pr: PayrollRecord) => <div className="text-right">{pr.jobs_completed}</div> },
+    { key: 'earnings', label: 'Earnings', render: (pr: PayrollRecord) => <div className="text-right font-medium text-accent">${pr.total_earnings.toFixed(2)}</div> },
+    { key: 'status', label: 'Status', render: (pr: PayrollRecord) => <div className="text-right"><StatusBadge status={pr.status} /></div> },
   ]
 
   return (
-    <div className="p-8">
-      <button
+    <div className="p-8 animate-fade-in">
+      <Button
         onClick={() => router.push('/app/employees')}
-        className="flex items-center gap-1.5 text-sm text-[#888] hover:text-white mb-4 transition-colors cursor-pointer"
+        variant="ghost"
+        size="sm"
+        className="mb-4"
       >
-        ← Back to Employees
-      </button>
+        <ArrowLeft size={14} />
+        Back to Employees
+      </Button>
 
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-[#00d28e]/20 flex items-center justify-center text-[#00d28e] font-bold text-xl">
+          <div className="w-14 h-14 rounded-full bg-accent-dim flex items-center justify-center text-accent font-bold text-xl">
             {employee.name.charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{employee.name}</h1>
-              {statusBadge(employee.status)}
+              <h1 className="text-2xl font-bold text-foreground">{employee.name}</h1>
+              <StatusBadge status={employee.status} />
             </div>
-            <p className="text-sm text-[#888]">
+            <p className="text-sm text-muted">
               {employee.role || '—'} · {employee.pay_type === 'hourly' ? `$${employee.hourly_rate}/hr` : employee.pay_type === 'per_job' ? `$${employee.per_job_rate}/job` : `$${employee.hourly_rate}/hr + $${employee.per_job_rate}/job`}
             </p>
           </div>
         </div>
-        <div className="text-right text-sm text-[#555]">
+        <div className="text-right text-sm text-muted-foreground">
           <div>Hired {formatDate(employee.hire_date)}</div>
           {employee.email && <div>{employee.email}</div>}
           {employee.phone && <div>{employee.phone}</div>}
@@ -152,174 +149,133 @@ export default function EmployeeDetailPage() {
       </div>
 
       <div className="grid grid-cols-6 gap-4 mb-8">
-        {statCards.map((s) => (
-          <div key={s.label} className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-            <div className="text-xs text-[#888] mb-1">{s.label}</div>
-            <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-            {s.extra && <div className="mt-0.5">{s.extra}</div>}
-          </div>
-        ))}
+        <Card padding="sm" className="animate-fade-in">
+          <div className="text-xs text-muted mb-1">Rating</div>
+          <div className="text-xl font-bold text-warning">{employee.rating.toFixed(1)}</div>
+          <div className="mt-0.5">{renderStars(employee.rating)}</div>
+        </Card>
+        <StatsCard label="Completion Rate" value={`${(employee.completion_rate * 100).toFixed(0)}%`} accent="accent" />
+        <StatsCard label="Punctuality" value={`${(employee.punctuality_score * 100).toFixed(0)}%`} accent="accent" />
+        <StatsCard label="Missed Jobs" value={employee.missed_jobs} accent={employee.missed_jobs > 3 ? 'danger' : 'white'} />
+        <StatsCard label="Total Jobs" value={employee.total_jobs} accent="white" />
+        <StatsCard label="Tenure" value={formatDate(employee.hire_date)} accent="white" />
       </div>
 
       <div className="grid grid-cols-3 gap-6 mb-8">
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888] mb-2">Hourly Rate</div>
-          <div className="text-lg font-bold text-white">${employee.hourly_rate.toFixed(2)}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888] mb-2">Per Job Rate</div>
-          <div className="text-lg font-bold text-white">${employee.per_job_rate.toFixed(2)}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888] mb-2">Pay Type</div>
-          <div className="text-lg font-bold text-[#00d28e] capitalize">{employee.pay_type.replace('_', ' / ')}</div>
-        </div>
+        <Card padding="md" className="animate-fade-in">
+          <div className="text-xs text-muted mb-2">Hourly Rate</div>
+          <div className="text-lg font-bold text-foreground">${employee.hourly_rate.toFixed(2)}</div>
+        </Card>
+        <Card padding="md" className="animate-fade-in">
+          <div className="text-xs text-muted mb-2">Per Job Rate</div>
+          <div className="text-lg font-bold text-foreground">${employee.per_job_rate.toFixed(2)}</div>
+        </Card>
+        <Card padding="md" className="animate-fade-in">
+          <div className="text-xs text-muted mb-2">Pay Type</div>
+          <div className="text-lg font-bold text-accent capitalize">{employee.pay_type.replace('_', ' / ')}</div>
+        </Card>
       </div>
 
       {warnings.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-lg font-bold mb-4">⚠ Early Warnings</h3>
+        <div className="mb-8 animate-fade-in">
+          <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+            <AlertTriangle size={18} className="text-warning" />
+            Early Warnings
+          </h3>
           <div className="space-y-2">
             {warnings.map((w) => (
-              <div
+              <Card
                 key={w.id}
-                className={`bg-[#111] border border-[#1a1a1a] rounded-xl p-4 flex items-center justify-between ${
-                  !w.acknowledged ? 'border-l-2 border-l-[#ff5050]' : 'opacity-60'
-                }`}
+                padding="md"
+                className={`flex items-center justify-between ${!w.acknowledged ? 'border-l-2 border-l-danger' : 'opacity-60'}`}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${severityBadge(w.severity)}`}>
+                    <Badge variant={w.severity === 'red' ? 'danger' : 'warning'} className="text-[10px]">
                       {w.severity.toUpperCase()}
-                    </span>
-                    <span className="text-xs text-[#555] capitalize">{w.warning_type.replace(/_/g, ' ')}</span>
-                    <span className="text-xs text-[#555]">{formatDate(w.created_at)}</span>
+                    </Badge>
+                    <span className="text-xs text-muted-foreground capitalize">{w.warning_type.replace(/_/g, ' ')}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(w.created_at)}</span>
                   </div>
-                  <p className="text-sm">{w.message}</p>
+                  <p className="text-sm text-foreground">{w.message}</p>
                 </div>
-                {!w.acknowledged && (
-                  <button
-                    onClick={() => acknowledgeWarning(w.id)}
-                    className="ml-4 px-3 py-1.5 bg-[#00d28e] text-[#0a0a0a] text-xs font-semibold rounded-lg hover:bg-[#00e89c] cursor-pointer whitespace-nowrap"
-                  >
+                {!w.acknowledged ? (
+                  <Button onClick={() => acknowledgeWarning(w.id)} variant="primary" size="sm" className="ml-4 whitespace-nowrap">
                     Acknowledge
-                  </button>
+                  </Button>
+                ) : (
+                  <span className="ml-4 text-xs text-muted-foreground">Acknowledged</span>
                 )}
-                {w.acknowledged && (
-                  <span className="ml-4 text-xs text-[#555]">Acknowledged</span>
-                )}
-              </div>
+              </Card>
             ))}
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-6 mb-8">
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5">
-          <h3 className="text-lg font-bold mb-4">Clock History</h3>
-          {clockEvents.length === 0 ? (
-            <p className="text-sm text-[#555] py-4 text-center">No clock events recorded.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-[#888] text-xs uppercase tracking-wide border-b border-[#1a1a1a]">
-                    <th className="text-left py-2 pr-3">Date</th>
-                    <th className="text-left py-2 pr-3">Clock In</th>
-                    <th className="text-left py-2 pr-3">Clock Out</th>
-                    <th className="text-right py-2">Duration</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clockEvents.map((ce) => (
-                    <tr key={ce.id} className="border-b border-[#151515]">
-                      <td className="py-2 pr-3 text-[#888]">{formatDate(ce.clock_in)}</td>
-                      <td className="py-2 pr-3">{formatTime(ce.clock_in)}</td>
-                      <td className="py-2 pr-3">{ce.clock_out ? formatTime(ce.clock_out) : <span className="text-[#00d28e]">Active</span>}</td>
-                      <td className="py-2 text-right">{ce.duration_minutes ? formatDuration(ce.duration_minutes) : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <Card padding="md" className="animate-fade-in">
+          <h3 className="text-lg font-bold text-foreground mb-4">Clock History</h3>
+          <Table
+            columns={clockColumns}
+            data={clockEvents}
+            emptyState={
+              <EmptyState
+                icon={<Clock size={24} />}
+                title="No clock events recorded"
+                description=""
+              />
+            }
+          />
+        </Card>
 
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5">
-          <h3 className="text-lg font-bold mb-4">Payroll History</h3>
-          {payrollRecords.length === 0 ? (
-            <p className="text-sm text-[#555] py-4 text-center">No payroll records yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-[#888] text-xs uppercase tracking-wide border-b border-[#1a1a1a]">
-                    <th className="text-left py-2 pr-3">Period</th>
-                    <th className="text-right py-2 pr-3">Hours</th>
-                    <th className="text-right py-2 pr-3">Jobs</th>
-                    <th className="text-right py-2 pr-3">Earnings</th>
-                    <th className="text-right py-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payrollRecords.map((pr) => (
-                    <tr key={pr.id} className="border-b border-[#151515]">
-                      <td className="py-2 pr-3 text-[#888] text-xs">
-                        {formatDate(pr.period_start)} – {formatDate(pr.period_end)}
-                      </td>
-                      <td className="py-2 pr-3 text-right">{pr.hours_worked.toFixed(1)}</td>
-                      <td className="py-2 pr-3 text-right">{pr.jobs_completed}</td>
-                      <td className="py-2 pr-3 text-right font-medium text-[#00d28e]">${pr.total_earnings.toFixed(2)}</td>
-                      <td className="py-2 text-right">
-                        <span className={`text-xs font-semibold ${pr.status === 'paid' ? 'text-[#00d28e]' : 'text-[#ffd700]'}`}>
-                          {pr.status === 'paid' ? 'Paid' : 'Pending'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <Card padding="md" className="animate-fade-in">
+          <h3 className="text-lg font-bold text-foreground mb-4">Payroll History</h3>
+          <Table
+            columns={payrollColumns}
+            data={payrollRecords}
+            emptyState={
+              <EmptyState
+                icon={<DollarSign size={24} />}
+                title="No payroll records yet"
+                description=""
+              />
+            }
+          />
+        </Card>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5">
-          <h3 className="text-lg font-bold mb-3">Skills</h3>
+        <Card padding="md" className="animate-fade-in">
+          <h3 className="text-lg font-bold text-foreground mb-3">Skills</h3>
           {employee.skills && employee.skills.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {employee.skills.map((s, i) => (
-                <span key={i} className="px-2.5 py-1 bg-[rgba(0,210,142,0.12)] text-[#00d28e] text-xs rounded-lg">
-                  {s}
-                </span>
+                <Badge key={i} variant="accent">{s}</Badge>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#555]">No skills listed.</p>
+            <p className="text-sm text-muted-foreground">No skills listed.</p>
           )}
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5">
-          <h3 className="text-lg font-bold mb-3">Certifications</h3>
+        </Card>
+        <Card padding="md" className="animate-fade-in">
+          <h3 className="text-lg font-bold text-foreground mb-3">Certifications</h3>
           {employee.certifications && employee.certifications.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {employee.certifications.map((c, i) => (
-                <span key={i} className="px-2.5 py-1 bg-[rgba(255,215,0,0.12)] text-[#ffd700] text-xs rounded-lg">
-                  {c}
-                </span>
+                <Badge key={i} variant="warning">{c}</Badge>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#555]">No certifications listed.</p>
+            <p className="text-sm text-muted-foreground">No certifications listed.</p>
           )}
-        </div>
+        </Card>
       </div>
 
       {employee.notes && (
-        <div className="mt-6 bg-[#111] border border-[#1a1a1a] rounded-xl p-5">
-          <h3 className="text-lg font-bold mb-2">Notes</h3>
-          <p className="text-sm text-[#aaa] whitespace-pre-wrap">{employee.notes}</p>
-        </div>
+        <Card padding="md" className="mt-6 animate-fade-in">
+          <h3 className="text-lg font-bold text-foreground mb-2">Notes</h3>
+          <p className="text-sm text-muted whitespace-pre-wrap">{employee.notes}</p>
+        </Card>
       )}
     </div>
   )

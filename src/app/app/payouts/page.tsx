@@ -5,6 +5,13 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import { fmtDate } from '@/lib/utils'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
+import Card from '@/components/ui/Card'
+import StatsCard from '@/components/ui/StatsCard'
+import StatusBadge from '@/components/ui/StatusBadge'
+import Button from '@/components/ui/Button'
+import Table from '@/components/ui/Table'
+import EmptyState from '@/components/ui/EmptyState'
+import { DollarSign } from 'lucide-react'
 
 export default function PayoutsPage() {
   const { supabase, user, loading } = useSupabase()
@@ -42,6 +49,15 @@ export default function PayoutsPage() {
   const paid = payouts.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0)
   const pending = payouts.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
 
+  const columns = [
+    { key: 'cleaner', label: 'Cleaner', render: (p: any) => <span className="font-medium">{p.cleaner_id.slice(0, 8)}</span> },
+    { key: 'amount', label: 'Amount', render: (p: any) => `$${p.amount.toFixed(2)}` },
+    { key: 'period', label: 'Period', render: (p: any) => <span className="text-muted">{p.period || '—'}</span> },
+    { key: 'status', label: 'Status', render: (p: any) => <StatusBadge status={p.status} /> },
+    { key: 'paid_at', label: 'Paid At', render: (p: any) => <span className="text-muted">{p.paid_at ? fmtDate(p.paid_at) : '—'}</span> },
+    { key: 'actions', label: 'Actions', render: (p: any) => p.status === 'pending' ? <Button variant="ghost" size="sm" onClick={() => markPaid(p.id)}>Mark Paid</Button> : null },
+  ]
+
   return (
     <div className="p-8">
       {pageLoading ? (
@@ -50,76 +66,32 @@ export default function PayoutsPage() {
           <LoadingSkeleton type="table" />
         </div>
       ) : (
-        <>
-          <div className="mb-6">
-        <h2 className="text-xl font-bold">Payouts</h2>
-        <p className="text-sm text-[#888]">Cleaner earnings tracking</p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Total</div>
-          <div className="text-2xl font-bold">${total.toFixed(0)}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Paid</div>
-          <div className="text-2xl font-bold text-[#00d28e]">${paid.toFixed(0)}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Pending</div>
-          <div className="text-2xl font-bold text-[#ffd700]">${pending.toFixed(0)}</div>
-        </div>
-      </div>
-
-      <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
-        {payouts.length === 0 ? (
-          <div className="text-center py-16 text-[#555]">
-            <div className="text-4xl mb-3 opacity-30">💰</div>
-            <p>No payouts yet</p>
+        <div className="space-y-6 animate-fade-in">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Payouts</h2>
+            <p className="text-sm text-muted">Cleaner earnings tracking</p>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[#888] text-xs uppercase tracking-wide border-b border-[#1a1a1a]">
-                  <th className="text-left py-3 px-4">Cleaner</th>
-                  <th className="text-left py-3 px-4">Amount</th>
-                  <th className="text-left py-3 px-4">Period</th>
-                  <th className="text-left py-3 px-4">Status</th>
-                  <th className="text-left py-3 px-4">Paid At</th>
-                  <th className="text-left py-3 px-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payouts.map((p) => (
-                  <tr key={p.id} className="border-b border-[#151515] hover:bg-[#0f0f0f]">
-                    <td className="py-3 px-4 font-medium">{p.cleaner_id.slice(0, 8)}</td>
-                    <td className="py-3 px-4">${p.amount.toFixed(2)}</td>
-                    <td className="py-3 px-4 text-[#888]">{p.period || '—'}</td>
-                    <td className="py-3 px-4">
-                      <span className={`status-${p.status === 'paid' ? 'paid' : 'pending'} inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-[#888]">{p.paid_at ? fmtDate(p.paid_at) : '—'}</td>
-                    <td className="py-3 px-4">
-                      {p.status === 'pending' && (
-                        <button
-                          onClick={() => markPaid(p.id)}
-                          className="px-3 py-1 text-xs bg-[rgba(0,210,142,0.12)] text-[#00d28e] rounded-md hover:bg-[rgba(0,210,142,0.2)] cursor-pointer"
-                        >
-                          Mark Paid
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="grid grid-cols-3 gap-4">
+            <StatsCard label="Total" value={`$${total.toFixed(0)}`} accent="white" />
+            <StatsCard label="Paid" value={`$${paid.toFixed(0)}`} accent="accent" />
+            <StatsCard label="Pending" value={`$${pending.toFixed(0)}`} accent="warning" />
           </div>
-        )}
-      </div>
-      </>
+
+          <Card padding="sm" className="p-0 overflow-hidden animate-fade-in">
+            <Table
+              columns={columns}
+              data={payouts}
+              emptyState={
+                <EmptyState
+                  icon={<DollarSign size={32} />}
+                  title="No payouts yet"
+                  description="Payouts will appear here once processed"
+                />
+              }
+            />
+          </Card>
+        </div>
       )}
     </div>
   )

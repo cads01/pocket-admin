@@ -6,6 +6,14 @@ import { useRouter } from 'next/navigation'
 import { fmtDate } from '@/lib/utils'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
 import type { PayrollRecord, Employee } from '@/lib/supabase'
+import Card from '@/components/ui/Card'
+import StatsCard from '@/components/ui/StatsCard'
+import StatusBadge from '@/components/ui/StatusBadge'
+import Button from '@/components/ui/Button'
+import Table from '@/components/ui/Table'
+import EmptyState from '@/components/ui/EmptyState'
+import Input from '@/components/ui/Input'
+import { DollarSign } from 'lucide-react'
 
 type PayrollWithEmployee = PayrollRecord & { employees: { name: string } | null }
 
@@ -135,6 +143,17 @@ export default function PayrollPage() {
   const pendingTotal = records.filter(r => r.status === 'pending').reduce((s, r) => s + r.total_earnings, 0)
   const paidTotal = records.filter(r => r.status === 'paid').reduce((s, r) => s + r.total_earnings, 0)
 
+  const columns = [
+    { key: 'employee', label: 'Employee', render: (r: PayrollWithEmployee) => r.employees?.name || r.employee_id.slice(0, 8) },
+    { key: 'hours', label: 'Hours', render: (r: PayrollWithEmployee) => r.hours_worked.toFixed(1) },
+    { key: 'jobs', label: 'Jobs', render: (r: PayrollWithEmployee) => r.jobs_completed.toString() },
+    { key: 'hourly', label: 'Hourly', render: (r: PayrollWithEmployee) => `$${r.hourly_earnings.toFixed(2)}` },
+    { key: 'per_job', label: 'Per Job', render: (r: PayrollWithEmployee) => `$${r.per_job_earnings.toFixed(2)}` },
+    { key: 'total', label: 'Total', render: (r: PayrollWithEmployee) => <span className="font-semibold">${r.total_earnings.toFixed(2)}</span> },
+    { key: 'status', label: 'Status', render: (r: PayrollWithEmployee) => <StatusBadge status={r.status} /> },
+    { key: 'actions', label: 'Actions', render: (r: PayrollWithEmployee) => r.status === 'pending' ? <Button variant="ghost" size="sm" onClick={() => markPaid(r.id)}>Mark as Paid</Button> : null },
+  ]
+
   return (
     <div className="p-8">
       {pageLoading ? (
@@ -143,51 +162,41 @@ export default function PayrollPage() {
           <LoadingSkeleton type="table" />
         </div>
       ) : (
-        <>
-          <div className="flex items-center justify-between mb-6">
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold">Payroll</h2>
-              <p className="text-sm text-[#888]">Auto-calculated earnings per employee</p>
+              <h2 className="text-xl font-bold text-foreground">Payroll</h2>
+              <p className="text-sm text-muted">Auto-calculated earnings per employee</p>
             </div>
-            <button
+            <Button
               onClick={generatePayroll}
               disabled={generating || (period === 'custom' && (!customStart || !customEnd))}
-              className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm disabled:opacity-50 cursor-pointer"
+              loading={generating}
             >
-              {generating ? 'Generating...' : 'Generate Payroll'}
-            </button>
+              Generate Payroll
+            </Button>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-              <div className="text-xs text-[#888]">Total Pending</div>
-              <div className="text-2xl font-bold text-[#ffd700]">${pendingTotal.toFixed(0)}</div>
-            </div>
-            <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-              <div className="text-xs text-[#888]">Total Paid</div>
-              <div className="text-2xl font-bold text-[#00d28e]">${paidTotal.toFixed(0)}</div>
-            </div>
-            <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-              <div className="text-xs text-[#888]">This Period</div>
-              <div className="text-2xl font-bold">
-                {period === 'custom'
-                  ? `${customStart || '?'} – ${customEnd || '?'}`
-                  : period === 'this-week' ? 'This Week'
-                  : period === 'this-month' ? 'This Month'
-                  : 'Last Month'}
-              </div>
-            </div>
-            <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-              <div className="text-xs text-[#888]">Employees</div>
-              <div className="text-2xl font-bold">{employees.length}</div>
-            </div>
+          <div className="grid grid-cols-4 gap-4">
+            <StatsCard label="Total Pending" value={`$${pendingTotal.toFixed(0)}`} accent="warning" />
+            <StatsCard label="Total Paid" value={`$${paidTotal.toFixed(0)}`} accent="accent" />
+            <StatsCard
+              label="This Period"
+              value={period === 'custom'
+                ? `${customStart || '?'} – ${customEnd || '?'}`
+                : period === 'this-week' ? 'This Week'
+                : period === 'this-month' ? 'This Month'
+                : 'Last Month'}
+              accent="white"
+            />
+            <StatsCard label="Employees" value={employees.length} accent="white" />
           </div>
 
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3">
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
-              className="px-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
+              className="px-3 py-2 bg-input border border-input-border rounded-lg text-sm text-foreground focus:outline-none focus:border-input-focus"
             >
               <option value="this-week">This Week</option>
               <option value="this-month">This Month</option>
@@ -195,82 +204,28 @@ export default function PayrollPage() {
               <option value="custom">Custom</option>
             </select>
             {period === 'custom' && (
-              <>
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="px-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                />
-                <span className="text-[#555]">to</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="px-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                />
-              </>
+              <div className="flex items-center gap-2">
+                <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="w-40" />
+                <span className="text-muted">to</span>
+                <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="w-40" />
+              </div>
             )}
           </div>
 
-          <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
-            {records.length === 0 ? (
-              <div className="text-center py-16 text-[#555]">
-                <div className="text-4xl mb-3 opacity-30">💰</div>
-                <p>No payroll records yet</p>
-                <p className="text-xs mt-1">Click "Generate Payroll" to create records for the current period</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-[#888] text-xs uppercase tracking-wide border-b border-[#1a1a1a]">
-                      <th className="text-left py-3 px-4">Employee</th>
-                      <th className="text-left py-3 px-4">Hours</th>
-                      <th className="text-left py-3 px-4">Jobs</th>
-                      <th className="text-left py-3 px-4">Hourly</th>
-                      <th className="text-left py-3 px-4">Per Job</th>
-                      <th className="text-left py-3 px-4">Total</th>
-                      <th className="text-left py-3 px-4">Status</th>
-                      <th className="text-left py-3 px-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {records.map((r) => (
-                      <tr key={r.id} className="border-b border-[#151515] hover:bg-[#0f0f0f]">
-                        <td className="py-3 px-4 font-medium">{r.employees?.name || r.employee_id.slice(0, 8)}</td>
-                        <td className="py-3 px-4">{r.hours_worked.toFixed(1)}</td>
-                        <td className="py-3 px-4">{r.jobs_completed}</td>
-                        <td className="py-3 px-4">${r.hourly_earnings.toFixed(2)}</td>
-                        <td className="py-3 px-4">${r.per_job_earnings.toFixed(2)}</td>
-                        <td className="py-3 px-4 font-semibold">${r.total_earnings.toFixed(2)}</td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            r.status === 'paid'
-                              ? 'bg-[rgba(0,210,142,0.12)] text-[#00d28e]'
-                              : 'bg-[rgba(255,215,0,0.12)] text-[#ffd700]'
-                          }`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          {r.status === 'pending' && (
-                            <button
-                              onClick={() => markPaid(r.id)}
-                              className="px-3 py-1 text-xs bg-[rgba(0,210,142,0.12)] text-[#00d28e] rounded-md hover:bg-[rgba(0,210,142,0.2)] cursor-pointer"
-                            >
-                              Mark as Paid
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
+          <Card padding="sm" className="p-0 overflow-hidden animate-fade-in">
+            <Table
+              columns={columns}
+              data={records}
+              emptyState={
+                <EmptyState
+                  icon={<DollarSign size={32} />}
+                  title="No payroll records yet"
+                  description='Click "Generate Payroll" to create records for the current period'
+                />
+              }
+            />
+          </Card>
+        </div>
       )}
     </div>
   )

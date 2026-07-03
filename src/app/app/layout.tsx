@@ -5,22 +5,39 @@ import { useRouter } from 'next/navigation'
 import { SupabaseProvider, useSupabase } from '@/components/SupabaseProvider'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Link from 'next/link'
+import {
+  LayoutDashboard,
+  Calendar,
+  Sparkles,
+  Users,
+  UserPlus,
+  Wallet,
+  ClipboardList,
+  Search,
+  Scale,
+  Star,
+  Video,
+  Settings,
+  LogOut,
+  Banknote,
+  DollarSign,
+} from 'lucide-react'
 
 const NAV_ITEMS = [
-  { icon: '📊', label: 'Dashboard', href: '/app' },
-  { icon: '📅', label: 'Bookings', href: '/app/bookings' },
-  { icon: '🧹', label: 'Cleaners', href: '/app/cleaners' },
-  { icon: '👥', label: 'Clients', href: '/app/clients' },
-  { icon: '👤', label: 'Employees', href: '/app/employees' },
-  { icon: '💰', label: 'Payroll', href: '/app/payroll' },
-  { icon: '📋', label: 'Assignments', href: '/app/assignments' },
-  { icon: '🔍', label: 'Inspections', href: '/app/inspections' },
-  { icon: '⚖️', label: 'Disputes', href: '/app/disputes' },
-  { icon: '💰', label: 'Invoices', href: '/app/invoices' },
-  { icon: '⭐', label: 'Reviews', href: '/app/reviews' },
-  { icon: '🎥', label: 'Videos', href: '/app/videos' },
-  { icon: '💸', label: 'Payouts', href: '/app/payouts' },
-  { icon: '⚙️', label: 'Settings', href: '/app/settings' },
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/app' },
+  { icon: Calendar, label: 'Bookings', href: '/app/bookings' },
+  { icon: Sparkles, label: 'Cleaners', href: '/app/cleaners' },
+  { icon: Users, label: 'Clients', href: '/app/clients' },
+  { icon: UserPlus, label: 'Employees', href: '/app/employees' },
+  { icon: Wallet, label: 'Payroll', href: '/app/payroll' },
+  { icon: ClipboardList, label: 'Assignments', href: '/app/assignments' },
+  { icon: Search, label: 'Inspections', href: '/app/inspections' },
+  { icon: Scale, label: 'Disputes', href: '/app/disputes' },
+  { icon: Banknote, label: 'Invoices', href: '/app/invoices' },
+  { icon: Star, label: 'Reviews', href: '/app/reviews' },
+  { icon: Video, label: 'Videos', href: '/app/videos' },
+  { icon: DollarSign, label: 'Payouts', href: '/app/payouts' },
+  { icon: Settings, label: 'Settings', href: '/app/settings' },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -37,20 +54,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
 
   return (
-    <div className="flex h-screen bg-[#0a0a0a]">
+    <div className="flex h-screen bg-background">
       <aside
         className={`${
           collapsed ? 'w-16' : 'w-56'
-        } bg-[#0d0d0d] border-r border-[#161616] flex flex-col transition-all duration-200 flex-shrink-0`}
+        } bg-surface border-r border-card-border flex flex-col transition-all duration-200 flex-shrink-0`}
       >
-        <div className="p-5 border-b border-[#161616]">
+        <div className="p-5 border-b border-card-border">
           <Link href="/app" className="no-underline">
             <h1 className={`font-bold tracking-tight ${collapsed ? 'text-center text-lg' : 'text-xl'}`}>
               {collapsed ? (
-                <span className="text-[#00d28e]">P</span>
+                <span className="text-accent">P</span>
               ) : (
                 <>
-                  Pocket <span className="text-[#00d28e]">Admin</span>
+                  Pocket <span className="text-accent">Admin</span>
                 </>
               )}
             </h1>
@@ -66,29 +83,44 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors no-underline ${
                   isActive
-                    ? 'text-[#00d28e] bg-[rgba(0,210,142,0.08)] border-r-2 border-[#00d28e]'
-                    : 'text-[#888] hover:text-white hover:bg-[rgba(255,255,255,0.03)]'
+                    ? 'text-accent bg-accent-dim border-r-2 border-accent'
+                    : 'text-muted hover:text-white hover:bg-white/5'
                 }`}
               >
-                <span className="text-lg w-6 text-center">{item.icon}</span>
+                <span className="w-6 flex items-center justify-center flex-shrink-0">
+                  <item.icon size={18} />
+                </span>
                 {!collapsed && <span>{item.label}</span>}
               </Link>
             )
           })}
         </nav>
 
-        <div className="border-t border-[#161616] p-3">
+        <div className="border-t border-card-border p-3 space-y-1">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-full py-2 px-3 text-xs text-[#555] hover:text-[#888] transition-colors cursor-pointer"
+            className="w-full flex items-center gap-3 py-2 px-3 text-xs text-muted-foreground hover:text-muted transition-colors cursor-pointer"
           >
-            {collapsed ? '→' : 'Collapse'}
+            {collapsed ? (
+              <span className="w-6 flex items-center justify-center">→</span>
+            ) : (
+              'Collapse'
+            )}
           </button>
           <button
             onClick={handleLogout}
-            className="w-full py-2 px-3 text-xs text-[#555] hover:text-[#ff5050] transition-colors cursor-pointer"
+            className="w-full flex items-center gap-3 py-2 px-3 text-xs text-muted-foreground hover:text-red-400 transition-colors cursor-pointer"
           >
-            {collapsed ? '🚪' : 'Sign out'}
+            {collapsed ? (
+              <span className="w-6 flex items-center justify-center">
+                <LogOut size={14} />
+              </span>
+            ) : (
+              <>
+                <LogOut size={14} />
+                Sign out
+              </>
+            )}
           </button>
         </div>
       </aside>

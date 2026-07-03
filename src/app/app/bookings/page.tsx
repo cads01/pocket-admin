@@ -1,11 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Booking, BookingTask, TaskPhoto, Cleaner, ClockEvent, Employee } from '@/lib/supabase'
+import type { Booking, Cleaner, ClockEvent, Employee } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
+import Card from '@/components/ui/Card'
+import StatsCard from '@/components/ui/StatsCard'
+import StatusBadge from '@/components/ui/StatusBadge'
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
+import Modal from '@/components/ui/Modal'
+import Table from '@/components/ui/Table'
+import EmptyState from '@/components/ui/EmptyState'
+import Input from '@/components/ui/Input'
+import { Calendar, Clock, DollarSign, Check, Plus } from 'lucide-react'
 
 const DEFAULT_ROOMS = [
   { room: 'Kitchen', tasks: ['Countertops & surfaces', 'Sink & faucet', 'Stovetop & range', 'Microwave interior', 'Cabinet exteriors', 'Sweep & mop floor', 'Take out trash'] },
@@ -35,6 +45,13 @@ export default function BookingWizard() {
   )
   const [submitting, setSubmitting] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
+
+  const stats = useMemo(() => ({
+    total: bookings.length,
+    revenue: bookings.reduce((s, b) => s + b.amount, 0),
+    active: bookings.filter(b => b.status === 'in_progress').length,
+    completed: bookings.filter(b => b.status === 'completed').length,
+  }), [bookings])
 
   useEffect(() => {
     if (loading) return
@@ -143,8 +160,73 @@ export default function BookingWizard() {
     setSelectedRooms(copy)
   }
 
+  const escrowVariant = (status: string) => {
+    if (status === 'released' || status === 'approved') return 'accent'
+    if (status === 'disputed' || status === 'flagged') return 'danger'
+    return 'warning'
+  }
+
+  const columns = [
+    {
+      key: 'id',
+      label: 'ID',
+      render: (b: Booking) => <span className="font-mono text-xs">{b.id.slice(0, 8)}</span>,
+    },
+    {
+      key: 'scheduled_date',
+      label: 'Date',
+      render: (b: Booking) => <>{fmtDate(b.scheduled_date)}</>,
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      render: (b: Booking) => <>${b.amount.toFixed(0)}</>,
+    },
+    {
+      key: 'escrow',
+      label: 'Escrow',
+      render: (b: Booking) => (
+        <Badge variant={escrowVariant(b.escrow_status)}>{b.escrow_status}</Badge>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (b: Booking) => <StatusBadge status={b.status} />,
+    },
+    {
+      key: 'inspection',
+      label: 'Inspection',
+      render: (b: Booking) => (
+        <Badge variant={escrowVariant(b.inspection_status)}>{b.inspection_status}</Badge>
+      ),
+    },
+    {
+      key: 'clock',
+      label: 'Clock',
+      render: (b: Booking) => {
+        if (b.status === 'in_progress' && b.employee_id) {
+          const activeClock = clockEvents.find(ce => ce.booking_id === b.id && !ce.clock_out)
+          if (activeClock) {
+            return (
+              <Button variant="danger" size="sm" onClick={() => clockOut(activeClock.id)}>
+                Clock Out
+              </Button>
+            )
+          }
+          return (
+            <Button variant="primary" size="sm" onClick={() => clockIn(b.id, b.employee_id!)}>
+              Clock In
+            </Button>
+          )
+        }
+        return <span className="text-muted-foreground text-xs">—</span>
+      },
+    },
+  ]
+
   return (
-    <div className="p-8">
+    <div className="p-8 animate-fade-in">
       {pageLoading ? (
         <div className="space-y-6">
           <LoadingSkeleton type="stats" />
@@ -152,289 +234,212 @@ export default function BookingWizard() {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold">Bookings</h2>
-          <p className="text-sm text-[#888]">Room-by-room booking wizard</p>
-        </div>
-        <button
-          onClick={() => setShowWizard(true)}
-          className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm cursor-pointer"
-        >
-          + New Booking
-        </button>
-      </div>
-
-      {/* Wizard Modal */}
-      {showWizard && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#111] border border-[#1a1a1a] rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-lg">
-                  {step === 0 ? 'Select Cleaner & Time' : step === 1 ? 'Room-by-Room Checklist' : 'Review & Confirm'}
-                </h3>
-                <button onClick={() => setShowWizard(false)} className="text-[#555] hover:text-white text-xl cursor-pointer">&times;</button>
-              </div>
-
-              {/* Step indicator */}
-              <div className="flex gap-1 mb-6">
-                {[0, 1, 2].map(s => (
-                  <div key={s} className={`flex-1 h-1 rounded ${s <= step ? 'bg-[#00d28e]' : 'bg-[#1a1a1a]'}`} />
-                ))}
-              </div>
-
-              {step === 0 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-medium text-[#aaa] block mb-1">Cleaner</label>
-                    <select
-                      value={selectedCleaner}
-                      onChange={(e) => setSelectedCleaner(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                    >
-                      <option value="">Select a cleaner...</option>
-                      {cleaners.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.business || c.id.slice(0, 8)} — ${c.hourly_rate}/hr
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-[#aaa] block mb-1">Assign Employee</label>
-                    <select
-                      value={selectedEmployee}
-                      onChange={(e) => setSelectedEmployee(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                    >
-                      <option value="">No employee assigned</option>
-                      {employees.map(emp => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.name} — ${emp.hourly_rate}/hr
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-[#aaa] block mb-1">Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-[#aaa] block mb-1">Address</label>
-                    <input
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="123 Main St"
-                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-[#aaa] block mb-1">Duration</label>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 6].map(h => (
-                        <button
-                          key={h}
-                          onClick={() => setHours(h)}
-                          className={`flex-1 py-2 rounded-lg text-sm border cursor-pointer ${
-                            hours === h ? 'bg-[#00d28e] text-[#0a0a0a] border-[#00d28e] font-semibold' : 'bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:border-[#00d28e]'
-                          }`}
-                        >
-                          {h}h
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 1 && (
-                <div className="space-y-4">
-                  <p className="text-sm text-[#888]">Select the rooms and tasks for this booking:</p>
-                  {selectedRooms.map((r, ri) => (
-                    <div key={r.room} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3">
-                      <button
-                        onClick={() => toggleAllRoom(ri)}
-                        className="flex items-center gap-2 w-full text-left font-semibold text-sm mb-2 cursor-pointer"
-                      >
-                        <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
-                          r.tasks.every(t => t.checked) ? 'bg-[#00d28e] border-[#00d28e] text-[#0a0a0a]' : 'border-[#2a2a2a]'
-                        }`}>
-                          {r.tasks.every(t => t.checked) ? '✓' : ''}
-                        </span>
-                        {r.room}
-                      </button>
-                      <div className="space-y-1 ml-6">
-                        {r.tasks.map((t, ti) => (
-                          <button
-                            key={t.task}
-                            onClick={() => toggleRoomTask(ri, ti)}
-                            className={`flex items-center gap-2 text-xs w-full text-left cursor-pointer ${
-                              t.checked ? 'text-white' : 'text-[#555]'
-                            }`}
-                          >
-                            <span className={`w-3 h-3 rounded-sm border flex items-center justify-center text-[8px] ${
-                              t.checked ? 'bg-[#00d28e] border-[#00d28e] text-[#0a0a0a]' : 'border-[#2a2a2a]'
-                            }`}>
-                              {t.checked ? '✓' : ''}
-                            </span>
-                            {t.task}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-3">
-                  <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3 text-sm">
-                    <div className="flex justify-between mb-1"><span className="text-[#888]">Cleaner</span><span>{cleaners.find(c => c.id === selectedCleaner)?.business || 'Selected'}</span></div>
-                    <div className="flex justify-between mb-1"><span className="text-[#888]">Date</span><span>{fmtDate(selectedDate)}</span></div>
-                    <div className="flex justify-between mb-1"><span className="text-[#888]">Duration</span><span>{hours}h</span></div>
-                    <div className="flex justify-between mb-1"><span className="text-[#888]">Rooms</span><span>{selectedRooms.filter(r => r.tasks.some(t => t.checked)).length}</span></div>
-                    <div className="flex justify-between mb-1"><span className="text-[#888]">Tasks</span><span>{selectedRooms.reduce((s, r) => s + r.tasks.filter(t => t.checked).length, 0)}</span></div>
-                    <div className="border-t border-[#1a1a1a] pt-1 mt-1 flex justify-between font-bold">
-                      <span>Total</span>
-                      <span className="text-[#00d28e]">${((cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours).toFixed(0)}</span>
-                    </div>
-                  </div>
-                  <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3 text-sm">
-                    <p className="text-[#888] mb-1">Selected rooms:</p>
-                    <ul className="text-xs space-y-0.5">
-                      {selectedRooms.filter(r => r.tasks.some(t => t.checked)).map(r => (
-                        <li key={r.room} className="flex items-center gap-1">
-                          <span className="text-[#00d28e]">✓</span>
-                          {r.room} ({r.tasks.filter(t => t.checked).length} tasks)
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 mt-6">
-                {step > 0 && (
-                  <button onClick={() => setStep(step - 1)} className="flex-1 py-2.5 bg-[#1a1a1a] rounded-lg text-sm cursor-pointer">
-                    Back
-                  </button>
-                )}
-                {step < 2 ? (
-                  <button
-                    onClick={() => setStep(step + 1)}
-                    disabled={step === 0 && (!selectedCleaner || !selectedDate || !address)}
-                    className="flex-1 py-2.5 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm disabled:opacity-50 cursor-pointer"
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    onClick={createBooking}
-                    disabled={submitting}
-                    className="flex-1 py-2.5 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm disabled:opacity-50 cursor-pointer"
-                  >
-                    {submitting ? 'Creating...' : 'Confirm Booking'}
-                  </button>
-                )}
-              </div>
+          <div className="flex items-center justify-between mb-6 animate-fade-in-up">
+            <div>
+              <h2 className="text-xl font-bold">Bookings</h2>
+              <p className="text-sm text-muted">Room-by-room booking wizard</p>
             </div>
+            <Button icon={Plus} onClick={() => setShowWizard(true)}>New Booking</Button>
           </div>
-        </div>
-      )}
 
-      {/* Booking list */}
-      <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
-        {bookings.length === 0 ? (
-          <div className="text-center py-16 text-[#555]">
-            <p>No bookings yet</p>
-            <button onClick={() => setShowWizard(true)} className="mt-3 px-4 py-2 bg-[#00d28e] text-[#0a0a0a] text-sm rounded-lg cursor-pointer">
-              Create your first booking
-            </button>
+          <div className="grid grid-cols-4 gap-4 mb-6 animate-slide-down">
+            <StatsCard label="Total Bookings" value={stats.total} icon={Calendar} />
+            <StatsCard label="Revenue" value={`$${stats.revenue}`} icon={DollarSign} />
+            <StatsCard label="In Progress" value={stats.active} icon={Clock} accent="info" />
+            <StatsCard label="Completed" value={stats.completed} icon={Check} accent="accent" />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[#888] text-xs uppercase tracking-wide border-b border-[#1a1a1a]">
-                  <th className="text-left py-3 px-4">ID</th>
-                  <th className="text-left py-3 px-4">Date</th>
-                  <th className="text-left py-3 px-4">Amount</th>
-                  <th className="text-left py-3 px-4">Escrow</th>
-                  <th className="text-left py-3 px-4">Status</th>
-                  <th className="text-left py-3 px-4">Inspection</th>
-                  <th className="text-left py-3 px-4">Clock</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map(b => (
-                  <tr key={b.id} className="border-b border-[#151515] hover:bg-[#0f0f0f]">
-                    <td className="py-3 px-4 font-mono text-xs">{b.id.slice(0, 8)}</td>
-                    <td className="py-3 px-4">{fmtDate(b.scheduled_date)}</td>
-                    <td className="py-3 px-4">${b.amount.toFixed(0)}</td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        b.escrow_status === 'released' ? 'bg-[rgba(0,210,142,0.12)] text-[#00d28e]'
-                        : b.escrow_status === 'disputed' ? 'bg-[rgba(255,80,80,0.12)] text-[#ff5050]'
-                        : 'bg-[rgba(255,215,0,0.12)] text-[#ffd700]'
+
+          <Modal
+            open={showWizard}
+            onClose={() => setShowWizard(false)}
+            title={step === 0 ? 'Select Cleaner & Time' : step === 1 ? 'Room-by-Room Checklist' : 'Review & Confirm'}
+            size="lg"
+          >
+            <div className="flex gap-1 mb-6">
+              {[0, 1, 2].map(s => (
+                <div key={s} className={`flex-1 h-1 rounded ${s <= step ? 'bg-accent' : 'bg-card-border'}`} />
+              ))}
+            </div>
+
+            {step === 0 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-muted block mb-1">Cleaner</label>
+                  <select
+                    value={selectedCleaner}
+                    onChange={(e) => setSelectedCleaner(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus:outline-none focus:border-input-focus"
+                  >
+                    <option value="">Select a cleaner...</option>
+                    {cleaners.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.business || c.id.slice(0, 8)} — ${c.hourly_rate}/hr
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted block mb-1">Assign Employee</label>
+                  <select
+                    value={selectedEmployee}
+                    onChange={(e) => setSelectedEmployee(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus:outline-none focus:border-input-focus"
+                  >
+                    <option value="">No employee assigned</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} — ${emp.hourly_rate}/hr
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Input
+                  label="Date & Time"
+                  type="datetime-local"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                />
+                <Input
+                  label="Address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="123 Main St"
+                />
+                <div>
+                  <label className="text-xs font-medium text-muted block mb-1">Duration</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 6].map(h => (
+                      <Button
+                        key={h}
+                        variant={hours === h ? 'primary' : 'secondary'}
+                        size="md"
+                        onClick={() => setHours(h)}
+                        className="flex-1"
+                      >
+                        {h}h
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 1 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted">Select the rooms and tasks for this booking:</p>
+                {selectedRooms.map((r, ri) => (
+                  <Card key={r.room} padding="sm">
+                    <Button
+                      variant="ghost"
+                      onClick={() => toggleAllRoom(ri)}
+                      className="w-full !justify-start text-left font-semibold text-sm mb-2 gap-2"
+                      size="sm"
+                    >
+                      <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
+                        r.tasks.every(t => t.checked) ? 'bg-accent border-accent text-[#0a0a0a]' : 'border-input-border'
                       }`}>
-                        {b.escrow_status}
+                        {r.tasks.every(t => t.checked) ? <Check size={10} /> : ''}
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold status-${b.status}`}>
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        b.inspection_status === 'approved' ? 'bg-[rgba(0,210,142,0.12)] text-[#00d28e]'
-                        : b.inspection_status === 'flagged' ? 'bg-[rgba(255,80,80,0.12)] text-[#ff5050]'
-                        : 'bg-[rgba(255,215,0,0.12)] text-[#ffd700]'
-                      }`}>
-                        {b.inspection_status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {b.status === 'in_progress' && b.employee_id ? (
-                        (() => {
-                          const activeClock = clockEvents.find(ce => ce.booking_id === b.id && !ce.clock_out)
-                          if (activeClock) {
-                            return (
-                              <button
-                                onClick={() => clockOut(activeClock.id)}
-                                className="px-2.5 py-1 bg-[rgba(255,80,80,0.12)] text-[#ff5050] text-xs rounded-lg cursor-pointer hover:bg-[rgba(255,80,80,0.2)]"
-                              >
-                                Clock Out
-                              </button>
-                            )
-                          }
-                          return (
-                            <button
-                              onClick={() => clockIn(b.id, b.employee_id!)}
-                              className="px-2.5 py-1 bg-[rgba(0,210,142,0.12)] text-[#00d28e] text-xs rounded-lg cursor-pointer hover:bg-[rgba(0,210,142,0.2)]"
-                            >
-                              Clock In
-                            </button>
-                          )
-                        })()
-                      ) : (
-                        <span className="text-[#555] text-xs">—</span>
-                      )}
-                    </td>
-                  </tr>
+                      {r.room}
+                    </Button>
+                    <div className="space-y-1 ml-6">
+                      {r.tasks.map((t, ti) => (
+                        <Button
+                          key={t.task}
+                          variant="ghost"
+                          onClick={() => toggleRoomTask(ri, ti)}
+                          className={`w-full !justify-start text-left text-xs gap-2 ${
+                            t.checked ? '!text-foreground' : '!text-muted-foreground'
+                          }`}
+                          size="sm"
+                        >
+                          <span className={`w-3 h-3 rounded-sm border flex items-center justify-center text-[8px] ${
+                            t.checked ? 'bg-accent border-accent text-[#0a0a0a]' : 'border-input-border'
+                          }`}>
+                            {t.checked ? <Check size={8} /> : ''}
+                          </span>
+                          {t.task}
+                        </Button>
+                      ))}
+                    </div>
+                  </Card>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-3">
+                <Card padding="sm">
+                  <div className="flex justify-between mb-1"><span className="text-muted">Cleaner</span><span>{cleaners.find(c => c.id === selectedCleaner)?.business || 'Selected'}</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-muted">Date</span><span>{fmtDate(selectedDate)}</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-muted">Duration</span><span>{hours}h</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-muted">Rooms</span><span>{selectedRooms.filter(r => r.tasks.some(t => t.checked)).length}</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-muted">Tasks</span><span>{selectedRooms.reduce((s, r) => s + r.tasks.filter(t => t.checked).length, 0)}</span></div>
+                  <div className="border-t border-card-border pt-1 mt-1 flex justify-between font-bold">
+                    <span>Total</span>
+                    <span className="text-accent">${((cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours).toFixed(0)}</span>
+                  </div>
+                </Card>
+                <Card padding="sm">
+                  <p className="text-muted mb-1">Selected rooms:</p>
+                  <ul className="text-xs space-y-0.5">
+                    {selectedRooms.filter(r => r.tasks.some(t => t.checked)).map(r => (
+                      <li key={r.room} className="flex items-center gap-1">
+                        <Check size={10} className="text-accent" />
+                        {r.room} ({r.tasks.filter(t => t.checked).length} tasks)
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              {step > 0 && (
+                <Button variant="secondary" onClick={() => setStep(step - 1)} className="flex-1">
+                  Back
+                </Button>
+              )}
+              {step < 2 ? (
+                <Button
+                  onClick={() => setStep(step + 1)}
+                  disabled={step === 0 && (!selectedCleaner || !selectedDate || !address)}
+                  className="flex-1"
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  onClick={createBooking}
+                  loading={submitting}
+                  className="flex-1"
+                >
+                  {submitting ? 'Creating...' : 'Confirm Booking'}
+                </Button>
+              )}
+            </div>
+          </Modal>
+
+          <div className="animate-fade-in-up">
+            {bookings.length === 0 ? (
+              <Card padding="sm">
+                <EmptyState
+                  icon={<Calendar size={40} />}
+                  title="No bookings yet"
+                  description="Create your first booking to get started"
+                  action={{ label: 'Create Booking', onClick: () => setShowWizard(true) }}
+                />
+              </Card>
+            ) : (
+              <Card className="overflow-hidden !p-0">
+                <Table<Booking>
+                  columns={columns}
+                  data={bookings}
+                />
+              </Card>
+            )}
           </div>
-        )}
-      </div>
-      </>
+        </>
       )}
     </div>
   )

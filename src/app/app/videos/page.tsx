@@ -5,6 +5,12 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import type { CleanerVideo } from '@/lib/supabase'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
+import Badge from '@/components/ui/Badge'
+import EmptyState from '@/components/ui/EmptyState'
+import { Play, Plus, Video } from 'lucide-react'
 
 export default function VideosPage() {
   const { supabase, user, loading } = useSupabase()
@@ -61,84 +67,84 @@ export default function VideosPage() {
           <LoadingSkeleton type="card" />
         </div>
       ) : (
-        <>
-          <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold">Cleaner Videos</h2>
-          <p className="text-sm text-[#888]">YouTube & story integration for cleaner profiles</p>
-        </div>
-        <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] font-semibold rounded-lg text-sm cursor-pointer">
-          + Add Video
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4 mb-4">
-          <div className="space-y-3">
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="YouTube/TikTok URL"
-              className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-            />
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Video title"
-              className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
-            />
-            <div className="flex gap-2">
-              {(['youtube', 'tiktok', 'upload'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setVideoType(t)}
-                  className={`px-3 py-1.5 text-xs rounded-lg border cursor-pointer ${
-                    videoType === t ? 'bg-[#00d28e] text-[#0a0a0a] border-[#00d28e]' : 'bg-[#1a1a1a] text-[#888] border-[#2a2a2a]'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Cleaner Videos</h2>
+              <p className="text-sm text-muted">YouTube & story integration for cleaner profiles</p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={addVideo} className="px-4 py-2 bg-[#00d28e] text-[#0a0a0a] text-sm rounded-lg font-semibold cursor-pointer">Save</button>
-              <button onClick={() => setShowForm(false)} className="px-4 py-2 bg-[#1a1a1a] text-[#888] text-sm rounded-lg cursor-pointer">Cancel</button>
-            </div>
+            <Button onClick={() => setShowForm(true)} icon={Plus}>
+              Add Video
+            </Button>
           </div>
-        </div>
-      )}
 
-      <div className="grid grid-cols-4 gap-4">
-        {videos.length === 0 ? (
-          <div className="col-span-4 text-center py-16 text-[#555]">
-            <div className="text-4xl mb-3 opacity-30">🎬</div>
-            <p className="text-sm">No videos yet</p>
-          </div>
-        ) : (
-          videos.map(v => (
-            <div key={v.id} className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
-              <div className="aspect-video bg-[#0d0d0d] flex items-center justify-center text-3xl">▶️</div>
-              <div className="p-3">
-                <h4 className="text-sm font-semibold truncate">{v.title || 'Untitled'}</h4>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[10px] text-[#888]">{v.video_type}</span>
-                  <button
-                    onClick={() => togglePublish(v.id, v.is_published)}
-                    className={`text-[10px] px-1.5 py-0.5 rounded cursor-pointer ${
-                      v.is_published
-                        ? 'bg-[rgba(0,210,142,0.12)] text-[#00d28e]'
-                        : 'bg-[rgba(255,80,80,0.12)] text-[#ff5050]'
-                    }`}
-                  >
-                    {v.is_published ? 'Live' : 'Hidden'}
-                  </button>
+          {showForm && (
+            <Card padding="md" className="animate-fade-in">
+              <div className="space-y-3">
+                <Input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="YouTube/TikTok URL"
+                />
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Video title"
+                />
+                <div className="flex gap-2">
+                  {(['youtube', 'tiktok', 'upload'] as const).map(t => (
+                    <Button
+                      key={t}
+                      onClick={() => setVideoType(t)}
+                      variant={videoType === t ? 'primary' : 'secondary'}
+                      size="sm"
+                    >
+                      {t}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={addVideo}>Save</Button>
+                  <Button onClick={() => setShowForm(false)} variant="secondary">Cancel</Button>
                 </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
-      </>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-4 gap-4">
+            {videos.length === 0 ? (
+              <div className="col-span-4">
+                <EmptyState
+                  icon={<Video size={32} />}
+                  title="No videos yet"
+                  description="Add a video to get started"
+                />
+              </div>
+            ) : (
+              videos.map(v => (
+                <Card key={v.id} padding="sm" className="p-0 overflow-hidden animate-fade-in">
+                  <div className="aspect-video bg-surface flex items-center justify-center">
+                    <Play size={28} className="text-muted" />
+                  </div>
+                  <div className="p-3">
+                    <h4 className="text-sm font-semibold truncate text-foreground">{v.title || 'Untitled'}</h4>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-muted">{v.video_type}</span>
+                      <Button
+                        onClick={() => togglePublish(v.id, v.is_published)}
+                        variant="ghost"
+                        size="sm"
+                        className={v.is_published ? 'text-accent' : 'text-danger'}
+                      >
+                        {v.is_published ? 'Live' : 'Hidden'}
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

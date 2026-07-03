@@ -5,6 +5,12 @@ import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
 import { fmtDate } from '@/lib/utils'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
+import Card from '@/components/ui/Card'
+import StatsCard from '@/components/ui/StatsCard'
+import StatusBadge from '@/components/ui/StatusBadge'
+import Table from '@/components/ui/Table'
+import EmptyState from '@/components/ui/EmptyState'
+import { Star } from 'lucide-react'
 
 export default function ReviewsPage() {
   const { supabase, user, loading } = useSupabase()
@@ -35,6 +41,21 @@ export default function ReviewsPage() {
 
   const fives = reviews.filter((r) => r.rating === 5).length
 
+  function renderStars(rating: number) {
+    const full = Math.floor(rating)
+    const half = rating - full >= 0.5
+    return (
+      <span className="text-warning">{'★'.repeat(full)}{half ? '½' : ''}{'☆'.repeat(5 - full - (half ? 1 : 0))}</span>
+    )
+  }
+
+  const columns = [
+    { key: 'booking', label: 'Booking', render: (r: any) => <span className="font-medium">{r.booking_id.slice(0, 8)}</span> },
+    { key: 'rating', label: 'Rating', render: (r: any) => <span className="text-warning">{renderStars(r.rating)}</span> },
+    { key: 'comment', label: 'Comment', render: (r: any) => <span className="text-muted max-w-[200px] truncate block">{r.comment || '—'}</span> },
+    { key: 'date', label: 'Date', render: (r: any) => <span className="text-muted">{fmtDate(r.created_at)}</span> },
+  ]
+
   return (
     <div className="p-8">
       {pageLoading ? (
@@ -43,59 +64,32 @@ export default function ReviewsPage() {
           <LoadingSkeleton type="table" />
         </div>
       ) : (
-        <>
-          <div className="mb-6">
-        <h2 className="text-xl font-bold">Reviews</h2>
-        <p className="text-sm text-[#888]">Ratings and feedback</p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Total Reviews</div>
-          <div className="text-2xl font-bold">{reviews.length}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">Average Rating</div>
-          <div className="text-2xl font-bold text-[#ffd700]">{avg}</div>
-        </div>
-        <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-4">
-          <div className="text-xs text-[#888]">5-Star</div>
-          <div className="text-2xl font-bold text-[#00d28e]">{fives}</div>
-        </div>
-      </div>
-
-      <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
-        {reviews.length === 0 ? (
-          <div className="text-center py-16 text-[#555]">
-            <div className="text-4xl mb-3 opacity-30">⭐</div>
-            <p>No reviews yet</p>
+        <div className="space-y-6 animate-fade-in">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Reviews</h2>
+            <p className="text-sm text-muted">Ratings and feedback</p>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[#888] text-xs uppercase tracking-wide border-b border-[#1a1a1a]">
-                  <th className="text-left py-3 px-4">Booking</th>
-                  <th className="text-left py-3 px-4">Rating</th>
-                  <th className="text-left py-3 px-4">Comment</th>
-                  <th className="text-left py-3 px-4">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reviews.map((r) => (
-                  <tr key={r.id} className="border-b border-[#151515] hover:bg-[#0f0f0f]">
-                    <td className="py-3 px-4 font-medium">{r.booking_id.slice(0, 8)}</td>
-                    <td className="py-3 px-4 text-[#ffd700]">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</td>
-                    <td className="py-3 px-4 text-[#888] max-w-[200px] truncate">{r.comment || '—'}</td>
-                    <td className="py-3 px-4 text-[#888]">{fmtDate(r.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="grid grid-cols-3 gap-4">
+            <StatsCard label="Total Reviews" value={reviews.length} accent="white" />
+            <StatsCard label="Average Rating" value={avg} accent="warning" />
+            <StatsCard label="5-Star" value={fives} accent="accent" />
           </div>
-        )}
-      </div>
-      </>
+
+          <Card padding="sm" className="p-0 overflow-hidden animate-fade-in">
+            <Table
+              columns={columns}
+              data={reviews}
+              emptyState={
+                <EmptyState
+                  icon={<Star size={32} />}
+                  title="No reviews yet"
+                  description="Reviews from customers will appear here"
+                />
+              }
+            />
+          </Card>
+        </div>
       )}
     </div>
   )
