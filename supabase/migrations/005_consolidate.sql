@@ -58,21 +58,19 @@ create policy "Manage own clients insert" on managed_clients
   );
 
 -- ============================================================
--- 4. REBUILD employees with business_id
+-- 4. REBUILD employees with business_id (skip if table missing)
 -- ============================================================
-alter table employees add column if not exists business_id uuid references businesses(id) on delete cascade;
-
-drop policy if exists "Admin manage employees" on employees;
-drop policy if exists "Client manage own employees" on employees;
-drop policy if exists "Manage own employees" on employees;
-create policy "Manage own employees" on employees
-  for all using (
-    business_id in (select id from businesses where owner_id = auth.uid())
-  );
-create policy "Manage own employees insert" on employees
-  for insert with check (
-    business_id in (select id from businesses where owner_id = auth.uid())
-  );
+do $$
+begin
+  if to_regclass('public.employees') is not null then
+    execute 'alter table employees add column if not exists business_id uuid references businesses(id) on delete cascade';
+    drop policy if exists "Admin manage employees" on employees;
+    drop policy if exists "Client manage own employees" on employees;
+    drop policy if exists "Manage own employees" on employees;
+    execute 'create policy "Manage own employees" on employees for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
+    execute 'create policy "Manage own employees insert" on employees for insert with check (business_id in (select id from businesses where owner_id = auth.uid()))';
+  end if;
+end $$;
 
 -- ============================================================
 -- 5. REBUILD bookings — drop marketplace FK, use managed_client + employee
@@ -89,12 +87,22 @@ drop policy if exists "Admin manage bookings" on bookings;
 drop policy if exists "Cleaner view assigned" on bookings;
 drop policy if exists "Customer view own" on bookings;
 drop policy if exists "Manage own bookings" on bookings;
-create policy "Manage own bookings" on bookings
-  for all using (
-    exists (select 1 from managed_clients where id = bookings.managed_client_id and business_id in (select id from businesses where owner_id = auth.uid()))
-    or
-    exists (select 1 from employees where id = bookings.employee_id and business_id in (select id from businesses where owner_id = auth.uid()))
-  );
+do $$
+begin
+  if to_regclass('public.employees') is not null then
+    execute 'create policy "Manage own bookings" on bookings
+      for all using (
+        exists (select 1 from managed_clients where id = bookings.managed_client_id and business_id in (select id from businesses where owner_id = auth.uid()))
+        or
+        exists (select 1 from employees where id = bookings.employee_id and business_id in (select id from businesses where owner_id = auth.uid()))
+      )';
+  else
+    execute 'create policy "Manage own bookings" on bookings
+      for all using (
+        exists (select 1 from managed_clients where id = bookings.managed_client_id and business_id in (select id from businesses where owner_id = auth.uid()))
+      )';
+  end if;
+end $$;
 
 -- ============================================================
 -- 6. REBUILD reviews — use managed_client + employee
@@ -112,29 +120,35 @@ create policy "Anyone view reviews" on reviews
   for select using (true);
 
 -- ============================================================
--- 7. Add business_id to remaining tables
+-- 7. Add business_id to remaining tables (guard missing tables)
 -- ============================================================
-alter table clock_events add column if not exists business_id uuid references businesses(id) on delete cascade;
-drop policy if exists "Admin manage clock_events" on clock_events;
-drop policy if exists "Employee view own" on clock_events;
-create policy "Manage own clock_events" on clock_events
-  for all using (
-    business_id in (select id from businesses where owner_id = auth.uid())
-  );
+do $$
+begin
+  if to_regclass('public.clock_events') is not null then
+    execute 'alter table clock_events add column if not exists business_id uuid references businesses(id) on delete cascade';
+    drop policy if exists "Admin manage clock_events" on clock_events;
+    drop policy if exists "Employee view own" on clock_events;
+    execute 'create policy "Manage own clock_events" on clock_events for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
+  end if;
+end $$;
 
-alter table employee_warnings add column if not exists business_id uuid references businesses(id) on delete cascade;
-drop policy if exists "Admin manage warnings" on employee_warnings;
-create policy "Manage own warnings" on employee_warnings
-  for all using (
-    business_id in (select id from businesses where owner_id = auth.uid())
-  );
+do $$
+begin
+  if to_regclass('public.employee_warnings') is not null then
+    execute 'alter table employee_warnings add column if not exists business_id uuid references businesses(id) on delete cascade';
+    drop policy if exists "Admin manage warnings" on employee_warnings;
+    execute 'create policy "Manage own warnings" on employee_warnings for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
+  end if;
+end $$;
 
-alter table payroll_records add column if not exists business_id uuid references businesses(id) on delete cascade;
-drop policy if exists "Admin manage payroll" on payroll_records;
-create policy "Manage own payroll" on payroll_records
-  for all using (
-    business_id in (select id from businesses where owner_id = auth.uid())
-  );
+do $$
+begin
+  if to_regclass('public.payroll_records') is not null then
+    execute 'alter table payroll_records add column if not exists business_id uuid references businesses(id) on delete cascade';
+    drop policy if exists "Admin manage payroll" on payroll_records;
+    execute 'create policy "Manage own payroll" on payroll_records for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
+  end if;
+end $$;
 
 alter table booking_tasks add column if not exists business_id uuid references businesses(id) on delete cascade;
 drop policy if exists "Admin full access booking_tasks" on booking_tasks;
@@ -201,48 +215,70 @@ create policy "View own waitlist" on waitlist_signups
 -- anon insert still allowed (from landing page)
 
 -- Cleaner locations — update for employee_id
-alter table cleaner_locations add column if not exists employee_id uuid references employees(id) on delete cascade;
 drop policy if exists "Parties view locations" on cleaner_locations;
 drop policy if exists "Cleaner upsert location" on cleaner_locations;
 drop policy if exists "Cleaner update location" on cleaner_locations;
-create policy "Manage own locations" on cleaner_locations
-  for all using (
-    exists (select 1 from employees where id = cleaner_locations.employee_id and business_id in (select id from businesses where owner_id = auth.uid()))
-  );
+do $$
+begin
+  if to_regclass('public.employees') is not null then
+    execute 'alter table cleaner_locations add column if not exists employee_id uuid references employees(id) on delete cascade';
+    execute 'create policy "Manage own locations" on cleaner_locations for all using (exists (select 1 from employees where id = cleaner_locations.employee_id and business_id in (select id from businesses where owner_id = auth.uid())))';
+  end if;
+end $$;
 
 -- ============================================================
--- 8. DROP stale marketplace policies (overlap risk with new business_id policies)
+-- 8. DROP stale marketplace policies (safe — checks table existence first)
 -- ============================================================
-drop policy if exists "Anyone view active cleaners" on cleaners;
-drop policy if exists "Admin manage cleaners" on cleaners;
-drop policy if exists "Cleaner update own" on cleaners;
-drop policy if exists "Admin manage customers" on customers;
-drop policy if exists "Customer view own" on customers;
-drop policy if exists "Anyone view videos" on cleaner_videos;
-drop policy if exists "Cleaner manage own videos" on cleaner_videos;
-drop policy if exists "Admin manage videos" on cleaner_videos;
+do $$
+begin
+  if to_regclass('public.cleaners') is not null then
+    drop policy if exists "Anyone view active cleaners" on cleaners;
+    drop policy if exists "Admin manage cleaners" on cleaners;
+    drop policy if exists "Cleaner update own" on cleaners;
+  end if;
+  if to_regclass('public.customers') is not null then
+    drop policy if exists "Admin manage customers" on customers;
+    drop policy if exists "Customer view own" on customers;
+  end if;
+  if to_regclass('public.cleaner_videos') is not null then
+    drop policy if exists "Anyone view videos" on cleaner_videos;
+    drop policy if exists "Cleaner manage own videos" on cleaner_videos;
+    drop policy if exists "Admin manage videos" on cleaner_videos;
+  end if;
+end $$;
 
 -- ============================================================
--- 9. INDEXES for performance
+-- 9. INDEXES for performance (guard missing tables)
 -- ============================================================
 create index if not exists idx_profiles_business on profiles(business_id);
 create index if not exists idx_managed_clients_business on managed_clients(business_id);
-create index if not exists idx_employees_business on employees(business_id);
-create index if not exists idx_employees_status on employees(status);
 create index if not exists idx_bookings_client on bookings(managed_client_id);
 create index if not exists idx_bookings_employee on bookings(employee_id);
 create index if not exists idx_bookings_status on bookings(status);
 create index if not exists idx_bookings_scheduled on bookings(scheduled_date);
-create index if not exists idx_clock_events_employee on clock_events(employee_id);
-create index if not exists idx_clock_events_business on clock_events(business_id);
-create index if not exists idx_payroll_employee on payroll_records(employee_id);
-create index if not exists idx_payroll_business on payroll_records(business_id);
-create index if not exists idx_warnings_employee on employee_warnings(employee_id);
-create index if not exists idx_warnings_business on employee_warnings(business_id);
 create index if not exists idx_reviews_booking on reviews(booking_id);
 create index if not exists idx_reviews_client on reviews(managed_client_id);
 create index if not exists idx_disputes_booking on disputes(booking_id);
 create index if not exists idx_inspections_booking on inspection_reports(booking_id);
+
+do $$ begin
+  if to_regclass('public.employees') is not null then
+    execute 'create index if not exists idx_employees_business on employees(business_id)';
+    execute 'create index if not exists idx_employees_status on employees(status)';
+  end if;
+  if to_regclass('public.clock_events') is not null then
+    execute 'create index if not exists idx_clock_events_employee on clock_events(employee_id)';
+    execute 'create index if not exists idx_clock_events_business on clock_events(business_id)';
+  end if;
+  if to_regclass('public.payroll_records') is not null then
+    execute 'create index if not exists idx_payroll_employee on payroll_records(employee_id)';
+    execute 'create index if not exists idx_payroll_business on payroll_records(business_id)';
+  end if;
+  if to_regclass('public.employee_warnings') is not null then
+    execute 'create index if not exists idx_warnings_employee on employee_warnings(employee_id)';
+    execute 'create index if not exists idx_warnings_business on employee_warnings(business_id)';
+  end if;
+end $$;
 
 -- ============================================================
 -- 10. UPDATE auth trigger — auto-create business for new admins
