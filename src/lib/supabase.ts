@@ -48,6 +48,7 @@ export type Booking = {
   id: string
   customer_id: string
   cleaner_id: string
+  employee_id: string | null
   status: 'requested' | 'assigned' | 'in_progress' | 'completed' | 'reviewed' | 'cancelled'
   scheduled_date: string
   duration: number
@@ -192,5 +193,66 @@ export type ManagedClient = {
   since: string
   mrr: number
   status: 'active' | 'trial' | 'churned'
+  created_at: string
+}
+
+export type Employee = {
+  id: string
+  client_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  role: string | null
+  hourly_rate: number
+  per_job_rate: number
+  pay_type: 'hourly' | 'per_job' | 'both'
+  status: 'active' | 'suspended' | 'terminated'
+  hire_date: string
+  rating: number
+  completion_rate: number
+  punctuality_score: number
+  missed_jobs: number
+  total_jobs: number
+  skills: string[]
+  certifications: string[]
+  stripe_account_id: string | null
+  notes: string | null
+  created_at: string
+}
+
+export type ClockEvent = {
+  id: string
+  employee_id: string
+  booking_id: string | null
+  clock_in: string
+  clock_out: string | null
+  gps_lat: number | null
+  gps_lng: number | null
+  duration_minutes: number | null
+}
+
+export type EmployeeWarning = {
+  id: string
+  employee_id: string
+  warning_type: 'low_rating' | 'high_missed' | 'low_punctuality' | 'attendance'
+  message: string
+  severity: 'yellow' | 'red'
+  acknowledged: boolean
+  created_at: string
+  resolved_at: string | null
+}
+
+export type PayrollRecord = {
+  id: string
+  employee_id: string
+  period_start: string
+  period_end: string
+  hours_worked: number
+  jobs_completed: number
+  hourly_earnings: number
+  per_job_earnings: number
+  total_earnings: number
+  status: 'pending' | 'paid'
+  paid_at: string | null
   created_at: string
 }

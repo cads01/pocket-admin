@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Booking, Cleaner, Customer, Profile } from '@/lib/supabase'
+import type { Booking, Cleaner, Customer, Profile, EmployeeWarning } from '@/lib/supabase'
 import { fmtDate, fmtTime } from '@/lib/utils'
 import CleanerMap from '@/components/CleanerMap'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [waitlist, setWaitlist] = useState<any[]>([])
   const [managedClients, setManagedClients] = useState<any[]>([])
+  const [warnings, setWarnings] = useState<EmployeeWarning[]>([])
 
   useEffect(() => {
     if (loading) return
@@ -58,6 +59,9 @@ export default function DashboardPage() {
 
       const { data: mc } = await supabase.from('managed_clients').select('*').order('since', { ascending: false })
       if (mc) setManagedClients(mc)
+
+      const { data: warns } = await supabase.from('employee_warnings').select('*, employee:employees(name)').is('resolved_at', null).order('created_at', { ascending: false })
+      if (warns) setWarnings(warns as any)
     } else if (p?.role === 'cleaner') {
       const { data: c } = await supabase
         .from('cleaners')
@@ -139,9 +143,9 @@ export default function DashboardPage() {
               <div className="text-xs text-[#555] mt-1">{managedClients.filter(c => c.status === 'trial').length} in trial · {managedClients.filter(c => c.status === 'churned').length} churned</div>
             </div>
             <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5">
-              <div className="text-xs text-[#888] uppercase tracking-wide mb-1">Monthly Revenue</div>
-              <div className="text-3xl font-bold text-[#ffd700]">${managedClients.reduce((s, c) => s + (c.mrr || 0), 0).toFixed(0)}</div>
-              <div className="text-xs text-[#555] mt-1">{managedClients.filter(c => c.status === 'active').length} paying clients</div>
+              <div className="text-xs text-[#888] uppercase tracking-wide mb-1">Active Warnings</div>
+              <div className={`text-3xl font-bold ${warnings.length > 0 ? 'text-[#ff5050]' : 'text-[#00d28e]'}`}>{warnings.length}</div>
+              <div className="text-xs text-[#555] mt-1">{warnings.filter(w => w.severity === 'red').length} red · {warnings.filter(w => w.severity === 'yellow').length} yellow</div>
             </div>
             <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5">
               <div className="text-xs text-[#888] uppercase tracking-wide mb-1">Conversion Rate</div>
@@ -149,6 +153,30 @@ export default function DashboardPage() {
               <div className="text-xs text-[#555] mt-1">{managedClients.length} converted · {waitlist.length} in pipeline</div>
             </div>
           </div>
+
+          {/* Early Warnings */}
+          {warnings.length > 0 && (
+            <div className="mb-6 space-y-2">
+              <h3 className="font-semibold flex items-center gap-2">
+                <span>⚠️</span> Early Warnings
+              </h3>
+              {warnings.map(w => (
+                <div key={w.id} className={`flex items-start gap-3 p-4 rounded-xl border ${
+                  w.severity === 'red'
+                    ? 'bg-[rgba(255,80,80,0.08)] border-[rgba(255,80,80,0.25)]'
+                    : 'bg-[rgba(255,215,0,0.08)] border-[rgba(255,215,0,0.25)]'
+                }`}>
+                  <span className="text-lg mt-0.5">{w.severity === 'red' ? '🔴' : '🟡'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{w.message}</p>
+                    <p className="text-xs text-[#888] mt-0.5">
+                      {(w as any).employee?.name || 'Unknown'} · {new Date(w.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Waitlist */}
           <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden mb-6">

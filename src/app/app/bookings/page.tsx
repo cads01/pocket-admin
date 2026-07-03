@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Booking, BookingTask, TaskPhoto, Cleaner } from '@/lib/supabase'
+import type { Booking, BookingTask, TaskPhoto, Cleaner, ClockEvent, Employee } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
 
@@ -19,11 +19,14 @@ export default function BookingWizard() {
   const router = useRouter()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [cleaners, setCleaners] = useState<Cleaner[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [clockEvents, setClockEvents] = useState<ClockEvent[]>([])
   const [showWizard, setShowWizard] = useState(false)
 
   // Wizard state
   const [step, setStep] = useState(0)
   const [selectedCleaner, setSelectedCleaner] = useState('')
+  const [selectedEmployee, setSelectedEmployee] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [address, setAddress] = useState('')
   const [hours, setHours] = useState(2)
@@ -51,6 +54,13 @@ export default function BookingWizard() {
 
     const { data: c } = await supabase.from('cleaners').select('*').eq('verified', true)
     if (c) setCleaners(c)
+
+    const { data: e } = await supabase.from('employees').select('*').eq('status', 'active')
+    if (e) setEmployees(e)
+
+    const { data: ce } = await supabase.from('clock_events').select('*').order('clock_in', { ascending: false })
+    if (ce) setClockEvents(ce)
+
     setPageLoading(false)
   }
 
@@ -66,6 +76,7 @@ export default function BookingWizard() {
       .from('bookings')
       .insert({
         cleaner_id: selectedCleaner,
+        employee_id: selectedEmployee || null,
         customer_id: user!.id,
         scheduled_date: selectedDate,
         duration: hours,
@@ -100,6 +111,22 @@ export default function BookingWizard() {
     setSubmitting(false)
     setShowWizard(false)
     setStep(0)
+    load()
+  }
+
+  async function clockIn(bookingId: string, employeeId: string) {
+    if (!supabase) return
+    await supabase.from('clock_events').insert({
+      employee_id: employeeId,
+      booking_id: bookingId,
+      clock_in: new Date().toISOString(),
+    })
+    load()
+  }
+
+  async function clockOut(clockEventId: string) {
+    if (!supabase) return
+    await supabase.from('clock_events').update({ clock_out: new Date().toISOString() }).eq('id', clockEventId)
     load()
   }
 
@@ -170,6 +197,21 @@ export default function BookingWizard() {
                       {cleaners.map(c => (
                         <option key={c.id} value={c.id}>
                           {c.business || c.id.slice(0, 8)} — ${c.hourly_rate}/hr
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[#aaa] block mb-1">Assign Employee</label>
+                    <select
+                      value={selectedEmployee}
+                      onChange={(e) => setSelectedEmployee(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-white focus:outline-none focus:border-[#00d28e]"
+                    >
+                      <option value="">No employee assigned</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.name} — ${emp.hourly_rate}/hr
                         </option>
                       ))}
                     </select>
@@ -326,6 +368,7 @@ export default function BookingWizard() {
                   <th className="text-left py-3 px-4">Escrow</th>
                   <th className="text-left py-3 px-4">Status</th>
                   <th className="text-left py-3 px-4">Inspection</th>
+                  <th className="text-left py-3 px-4">Clock</th>
                 </tr>
               </thead>
               <tbody>
@@ -356,6 +399,33 @@ export default function BookingWizard() {
                       }`}>
                         {b.inspection_status}
                       </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      {b.status === 'in_progress' && b.employee_id ? (
+                        (() => {
+                          const activeClock = clockEvents.find(ce => ce.booking_id === b.id && !ce.clock_out)
+                          if (activeClock) {
+                            return (
+                              <button
+                                onClick={() => clockOut(activeClock.id)}
+                                className="px-2.5 py-1 bg-[rgba(255,80,80,0.12)] text-[#ff5050] text-xs rounded-lg cursor-pointer hover:bg-[rgba(255,80,80,0.2)]"
+                              >
+                                Clock Out
+                              </button>
+                            )
+                          }
+                          return (
+                            <button
+                              onClick={() => clockIn(b.id, b.employee_id!)}
+                              className="px-2.5 py-1 bg-[rgba(0,210,142,0.12)] text-[#00d28e] text-xs rounded-lg cursor-pointer hover:bg-[rgba(0,210,142,0.2)]"
+                            >
+                              Clock In
+                            </button>
+                          )
+                        })()
+                      ) : (
+                        <span className="text-[#555] text-xs">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
