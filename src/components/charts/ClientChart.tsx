@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
-import type { Customer, Cleaner } from '@/lib/supabase'
+import type { ManagedClient } from '@/lib/supabase'
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
@@ -23,14 +23,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function ClientChart({
-  customers,
+  clients,
 }: {
-  customers: Customer[]
+  clients: ManagedClient[]
 }) {
   const data = useMemo(() => {
     const byMonth: Record<string, number> = {}
-    const sorted = [...customers].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    const sorted = [...clients].sort(
+      (a, b) => new Date(a.since || a.created_at).getTime() - new Date(b.since || b.created_at).getTime()
     )
     let cumulative = 0
     const months: { month: string; total: number }[] = []
@@ -48,7 +48,7 @@ export default function ClientChart({
     }
 
     return months
-  }, [customers])
+  }, [clients])
 
   if (data.length === 0) {
     return (

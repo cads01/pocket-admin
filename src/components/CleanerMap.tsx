@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from './SupabaseProvider'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
-interface CleanerLocation {
-  cleaner_id: string
+interface EmployeeLocation {
+  employee_id: string
   latitude: number
   longitude: number
   updated_at: string
@@ -13,8 +13,8 @@ interface CleanerLocation {
 
 export default function CleanerMap() {
   const { supabase } = useSupabase()
-  const [locations, setLocations] = useState<CleanerLocation[]>([])
-  const [cleaners, setCleaners] = useState<Record<string, string>>({})
+  const [locations, setLocations] = useState<EmployeeLocation[]>([])
+  const [employees, setEmployees] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!supabase) return
@@ -24,17 +24,17 @@ export default function CleanerMap() {
       .channel('cleaner-locations')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'cleaner_locations' },
-        (payload: RealtimePostgresChangesPayload<CleanerLocation>) => {
+        (payload: RealtimePostgresChangesPayload<EmployeeLocation>) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const r = payload.new as CleanerLocation
+            const r = payload.new as EmployeeLocation
             setLocations((prev) => {
-              const filtered = prev.filter((l) => l.cleaner_id !== r.cleaner_id)
+              const filtered = prev.filter((l) => l.employee_id !== r.employee_id)
               return [...filtered, r]
             })
           }
           if (payload.eventType === 'DELETE') {
-            const r = payload.old as CleanerLocation
-            setLocations((prev) => prev.filter((l) => l.cleaner_id !== r.cleaner_id))
+            const r = payload.old as EmployeeLocation
+            setLocations((prev) => prev.filter((l) => l.employee_id !== r.employee_id))
           }
         }
       )
@@ -48,7 +48,7 @@ export default function CleanerMap() {
     const { data: locs } = await supabase.from('cleaner_locations').select('*')
     if (locs) setLocations(locs)
 
-    const { data: cls } = await supabase.from('cleaners').select('id, profile_id')
+    const { data: cls } = await supabase.from('employees').select('id, profile_id')
     if (cls) {
       const ids = cls.map((c) => c.profile_id)
       const { data: profs } = await supabase.from('profiles').select('id, name').in('id', ids)
@@ -57,7 +57,7 @@ export default function CleanerMap() {
         const p = profs?.find((pr) => pr.id === c.profile_id)
         map[c.id] = p?.name || c.id.slice(0, 8)
       }
-      setCleaners(map)
+      setEmployees(map)
     }
   }
 
@@ -68,9 +68,9 @@ export default function CleanerMap() {
       <h3 className="font-semibold mb-3">Live Cleaner Locations</h3>
       <div className="space-y-2">
         {locations.map((loc) => (
-          <div key={loc.cleaner_id} className="flex items-center gap-3 text-sm">
+          <div key={loc.employee_id} className="flex items-center gap-3 text-sm">
             <span className="w-2 h-2 rounded-full bg-[#00d28e] animate-pulse" />
-            <span className="text-[#888]">{cleaners[loc.cleaner_id] || loc.cleaner_id.slice(0, 8)}</span>
+            <span className="text-[#888]">{employees[loc.employee_id] || loc.employee_id.slice(0, 8)}</span>
             <span className="text-[#555] text-xs">
               {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)}
             </span>

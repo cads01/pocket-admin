@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Booking, Cleaner, Customer, Profile, EmployeeWarning } from '@/lib/supabase'
+import type { Booking, Employee, ManagedClient, Profile, EmployeeWarning } from '@/lib/supabase'
 import { fmtDate, fmtTime } from '@/lib/utils'
 import CleanerMap from '@/components/CleanerMap'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
@@ -23,13 +23,11 @@ export default function DashboardPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [cleaner, setCleaner] = useState<Cleaner | null>(null)
-  const [customer, setCustomer] = useState<Customer | null>(null)
+  const [employee, setEmployee] = useState<Employee | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [cleaners, setCleaners] = useState<Cleaner[]>([])
-  const [customers, setCustomers] = useState<Customer[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [managedClients, setManagedClients] = useState<ManagedClient[]>([])
   const [waitlist, setWaitlist] = useState<any[]>([])
-  const [managedClients, setManagedClients] = useState<any[]>([])
   const [warnings, setWarnings] = useState<EmployeeWarning[]>([])
 
   useEffect(() => {
@@ -59,32 +57,29 @@ export default function DashboardPage() {
         .limit(50)
       if (b) setBookings(b)
 
-      const { data: cl } = await supabase.from('cleaners').select('*')
-      if (cl) setCleaners(cl)
-
-      const { data: cu } = await supabase.from('customers').select('*')
-      if (cu) setCustomers(cu)
-
-      const { data: w } = await supabase.from('waitlist_signups').select('*').order('signed_up_at', { ascending: false })
-      if (w) setWaitlist(w)
+      const { data: emp } = await supabase.from('employees').select('*')
+      if (emp) setEmployees(emp)
 
       const { data: mc } = await supabase.from('managed_clients').select('*').order('since', { ascending: false })
       if (mc) setManagedClients(mc)
 
+      const { data: w } = await supabase.from('waitlist_signups').select('*').order('signed_up_at', { ascending: false })
+      if (w) setWaitlist(w)
+
       const { data: warns } = await supabase.from('employee_warnings').select('*, employee:employees(name)').is('resolved_at', null).order('created_at', { ascending: false })
       if (warns) setWarnings(warns as any)
-    } else if (p?.role === 'cleaner') {
-      const { data: c } = await supabase
-        .from('cleaners')
+    } else if (p?.role === 'employee') {
+      const { data: e } = await supabase
+        .from('employees')
         .select('*')
-        .eq('profile_id', user!.id)
+        .limit(1)
         .single()
-      if (c) {
-        setCleaner(c)
+      if (e) {
+        setEmployee(e)
         const { data: b } = await supabase
           .from('bookings')
           .select('*')
-          .eq('cleaner_id', c.id)
+          .eq('employee_id', e.id)
           .order('scheduled_date', { ascending: true })
         if (b) setBookings(b)
       }
@@ -113,7 +108,7 @@ export default function DashboardPage() {
     .filter((b) => b.status === 'completed' || b.status === 'reviewed')
     .reduce((s, b) => s + b.platform_fee, 0)
 
-  const activeCleaners = cleaners.filter((c) => c.active).length
+  const activeEmployees = employees.filter((e) => e.status === 'active').length
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayJobs = bookings.filter((b) => b.scheduled_date === todayStr)
@@ -133,7 +128,7 @@ export default function DashboardPage() {
           <p className="text-sm text-muted">
             {profile.role === 'admin'
               ? 'Platform overview'
-              : profile.role === 'cleaner'
+              : profile.role === 'employee'
               ? 'Your upcoming jobs'
               : 'Your bookings'}
           </p>
@@ -221,7 +216,7 @@ export default function DashboardPage() {
                 <Users size={16} className="text-purple" />
                 <h3 className="text-sm font-semibold">Client Growth</h3>
               </div>
-              <ClientChart customers={customers} />
+              <ClientChart clients={managedClients} />
             </Card>
           </div>
 
@@ -307,7 +302,7 @@ export default function DashboardPage() {
               <Table
                 columns={[
                   { key: 'id', label: 'Customer', render: (b: any) => <span className="font-medium">{b.id.slice(0, 8)}</span> },
-                  { key: 'cleaner_id', label: 'Cleaner', render: (b: any) => <span className="text-muted">{b.cleaner_id.slice(0, 8)}</span> },
+                  { key: 'employee_id', label: 'Cleaner', render: (b: any) => <span className="text-muted">{b.employee_id?.slice(0, 8)}</span> },
                   { key: 'scheduled_date', label: 'Date', render: (b: any) => <span>{fmtDate(b.scheduled_date)}</span> },
                   { key: 'amount', label: 'Amount', render: (b: any) => <span>${b.amount.toFixed(0)}</span> },
                   { key: 'status', label: 'Status', render: (b: any) => <StatusBadge status={b.status} /> },
@@ -320,7 +315,7 @@ export default function DashboardPage() {
         </>
       )}
 
-      {profile.role === 'cleaner' && cleaner && (
+      {profile.role === 'employee' && employee && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatsCard
             label="Today's Jobs"
@@ -329,12 +324,12 @@ export default function DashboardPage() {
           />
           <StatsCard
             label="Total Earnings"
-            value={`$${cleaner.total_earnings.toFixed(0)}`}
+            value={`$0`}
             accent="warning"
           />
           <StatsCard
             label="Rating"
-            value={cleaner.rating.toFixed(1)}
+            value={'0.0'}
             accent="purple"
           />
         </div>

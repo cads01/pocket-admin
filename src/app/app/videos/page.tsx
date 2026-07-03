@@ -19,7 +19,7 @@ export default function VideosPage() {
   const [showForm, setShowForm] = useState(false)
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
-  const [cleanerId, setCleanerId] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
   const [videoType, setVideoType] = useState<'youtube' | 'tiktok' | 'upload'>('youtube')
   const [pageLoading, setPageLoading] = useState(true)
 
@@ -43,7 +43,7 @@ export default function VideosPage() {
   async function addVideo() {
     if (!supabase || !url) return
     await supabase.from('cleaner_videos').insert({
-      cleaner_id: cleanerId || undefined,
+      employee_id: employeeId || undefined,
       title,
       url,
       video_type: videoType,

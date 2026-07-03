@@ -34,17 +34,17 @@ export default function CleanerDashboard() {
       .single()
     setProfile(p)
 
-    const cleaner = await supabase
-      .from('cleaners')
+    const employee = await supabase
+      .from('employees')
       .select('id')
       .eq('profile_id', user!.id)
       .maybeSingle()
 
-    if (cleaner.data) {
+    if (employee.data) {
       const { data: b } = await supabase
         .from('bookings')
         .select('*')
-        .eq('cleaner_id', cleaner.data.id)
+        .eq('employee_id', employee.data.id)
         .order('scheduled_date', { ascending: true })
       if (b) setBookings(b)
     }

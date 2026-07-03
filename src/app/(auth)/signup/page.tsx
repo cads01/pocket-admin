@@ -34,14 +34,15 @@ export default function SignupPage() {
 
     if (authData.user) {
       if (role === 'cleaner') {
-        await supabase.from('cleaners').insert({
+        await supabase.from('employees').insert({
           profile_id: authData.user.id,
+          name: name,
           business: name + "'s Cleaning",
-          services: ['standard'],
         })
       } else {
-        await supabase.from('customers').insert({
+        await supabase.from('managed_clients').insert({
           profile_id: authData.user.id,
+          name: name,
         })
       }
     }

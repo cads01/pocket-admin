@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Customer } from '@/lib/supabase'
+import type { ManagedClient } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
 import { Users, Plus, Search, User, Mail, Phone, MapPin, DollarSign, Star, Trash2, Edit3, X, Building2, CreditCard, Calendar } from 'lucide-react'
@@ -15,7 +15,7 @@ import EmptyState from '@/components/ui/EmptyState'
 export default function ClientsPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
-  const [customers, setCustomers] = useState<any[]>([])
+  const [managedClients, setManagedClients] = useState<any[]>([])
   const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
@@ -27,24 +27,24 @@ export default function ClientsPage() {
   async function load() {
     if (!supabase) return
     setPageLoading(true)
-    const { data } = await supabase.from('customers').select('*, profiles!inner(name, email, phone)')
-    if (data) setCustomers(data as any)
+    const { data } = await supabase.from('managed_clients').select('*')
+    if (data) setManagedClients(data as any)
     setPageLoading(false)
   }
 
-  const active = customers.filter((c) => c.total_jobs > 0).length
-  const totalSpent = customers.reduce((s, c) => s + c.total_spent, 0)
+  const active = managedClients.filter((c) => c.total_jobs > 0).length
+  const totalSpent = managedClients.reduce((s, c) => s + c.total_spent, 0)
 
   const columns = [
     {
       key: 'name',
       label: 'Name',
-      render: (c: any) => <span className="font-medium">{c.profiles?.name || '—'}</span>,
+      render: (c: any) => <span className="font-medium">{c.name || '—'}</span>,
     },
     {
       key: 'phone',
       label: 'Phone',
-      render: (c: any) => <span className="text-muted">{c.profiles?.phone || '—'}</span>,
+      render: (c: any) => <span className="text-muted">{c.phone || '—'}</span>,
     },
     { key: 'total_jobs', label: 'Jobs' },
     {
@@ -74,7 +74,7 @@ export default function ClientsPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <StatsCard label="Total Clients" value={customers.length} accent="purple" />
+            <StatsCard label="Total Clients" value={managedClients.length} accent="purple" />
             <StatsCard label="Active" value={active} accent="accent" />
             <StatsCard label="Total Spent" value={`$${totalSpent.toFixed(0)}`} accent="white" />
           </div>
@@ -83,7 +83,7 @@ export default function ClientsPage() {
             <div className="min-w-[600px]">
             <Table
               columns={columns}
-              data={customers}
+              data={managedClients}
               emptyState={
                 <EmptyState
                   icon={<Users size={48} className="text-muted" />}

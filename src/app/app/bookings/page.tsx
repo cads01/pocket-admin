@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Booking, Cleaner, ClockEvent, Employee } from '@/lib/supabase'
+import type { Booking, ClockEvent, Employee } from '@/lib/supabase'
 import { fmtDate } from '@/lib/utils'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
 import Card from '@/components/ui/Card'
@@ -30,15 +30,15 @@ export default function BookingWizard() {
   const router = useRouter()
   const { success, error } = useToast()
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [cleaners, setCleaners] = useState<Cleaner[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [activeEmployees, setActiveEmployees] = useState<Employee[]>([])
   const [clockEvents, setClockEvents] = useState<ClockEvent[]>([])
   const [showWizard, setShowWizard] = useState(false)
 
   // Wizard state
   const [step, setStep] = useState(0)
-  const [selectedCleaner, setSelectedCleaner] = useState('')
   const [selectedEmployee, setSelectedEmployee] = useState('')
+  const [selectedAssignEmployee, setSelectedAssignEmployee] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [address, setAddress] = useState('')
   const [hours, setHours] = useState(2)
@@ -71,11 +71,11 @@ export default function BookingWizard() {
       .limit(50)
     if (b) setBookings(b)
 
-    const { data: c } = await supabase.from('cleaners').select('*').eq('verified', true)
-    if (c) setCleaners(c)
-
-    const { data: e } = await supabase.from('employees').select('*').eq('status', 'active')
+    const { data: e } = await supabase.from('employees').select('*').eq('verified', true)
     if (e) setEmployees(e)
+
+    const { data: ae } = await supabase.from('employees').select('*').eq('status', 'active')
+    if (ae) setActiveEmployees(ae)
 
     const { data: ce } = await supabase.from('clock_events').select('*').order('clock_in', { ascending: false })
     if (ce) setClockEvents(ce)
@@ -84,19 +84,18 @@ export default function BookingWizard() {
   }
 
   async function createBooking() {
-    if (!supabase || !selectedCleaner || !selectedDate || !address) return
+    if (!supabase || !selectedEmployee || !selectedDate || !address) return
     setSubmitting(true)
     try {
-      const total = (cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours
+      const total = (employees.find(e => e.id === selectedEmployee)?.hourly_rate || 50) * hours
       const fee = Math.round(total * 0.15)
       const cleanerCut = total - fee
 
       const { data: booking } = await supabase
         .from('bookings')
         .insert({
-          cleaner_id: selectedCleaner,
-          employee_id: selectedEmployee || null,
-          customer_id: user!.id,
+          employee_id: selectedEmployee,
+          managed_client_id: null,
           scheduled_date: selectedDate,
           duration: hours,
           amount: Math.round(total),
@@ -283,14 +282,14 @@ export default function BookingWizard() {
                 <div>
                   <label className="text-xs font-medium text-muted block mb-1">Cleaner</label>
                   <select
-                    value={selectedCleaner}
-                    onChange={(e) => setSelectedCleaner(e.target.value)}
+                    value={selectedEmployee}
+                    onChange={(e) => setSelectedEmployee(e.target.value)}
                     className="w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus:outline-none focus:border-input-focus"
                   >
                     <option value="">Select a cleaner...</option>
-                    {cleaners.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.business || c.id.slice(0, 8)} — ${c.hourly_rate}/hr
+                    {employees.map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.name || e.id.slice(0, 8)} — ${e.hourly_rate}/hr
                       </option>
                     ))}
                   </select>
@@ -298,12 +297,12 @@ export default function BookingWizard() {
                 <div>
                   <label className="text-xs font-medium text-muted block mb-1">Assign Employee</label>
                   <select
-                    value={selectedEmployee}
-                    onChange={(e) => setSelectedEmployee(e.target.value)}
+                    value={selectedAssignEmployee}
+                    onChange={(e) => setSelectedAssignEmployee(e.target.value)}
                     className="w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus:outline-none focus:border-input-focus"
                   >
                     <option value="">No employee assigned</option>
-                    {employees.map(emp => (
+                    {activeEmployees.map(emp => (
                       <option key={emp.id} value={emp.id}>
                         {emp.name} — ${emp.hourly_rate}/hr
                       </option>
@@ -387,14 +386,14 @@ export default function BookingWizard() {
             {step === 2 && (
               <div className="space-y-3">
                 <Card padding="sm">
-                  <div className="flex justify-between mb-1"><span className="text-muted">Cleaner</span><span>{cleaners.find(c => c.id === selectedCleaner)?.business || 'Selected'}</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-muted">Cleaner</span><span>{employees.find(e => e.id === selectedEmployee)?.name || 'Selected'}</span></div>
                   <div className="flex justify-between mb-1"><span className="text-muted">Date</span><span>{fmtDate(selectedDate)}</span></div>
                   <div className="flex justify-between mb-1"><span className="text-muted">Duration</span><span>{hours}h</span></div>
                   <div className="flex justify-between mb-1"><span className="text-muted">Rooms</span><span>{selectedRooms.filter(r => r.tasks.some(t => t.checked)).length}</span></div>
                   <div className="flex justify-between mb-1"><span className="text-muted">Tasks</span><span>{selectedRooms.reduce((s, r) => s + r.tasks.filter(t => t.checked).length, 0)}</span></div>
                   <div className="border-t border-card-border pt-1 mt-1 flex justify-between font-bold">
                     <span>Total</span>
-                    <span className="text-accent">${((cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours).toFixed(0)}</span>
+                    <span className="text-accent">${((employees.find(e => e.id === selectedEmployee)?.hourly_rate || 50) * hours).toFixed(0)}</span>
                   </div>
                 </Card>
                 <Card padding="sm">
@@ -420,7 +419,7 @@ export default function BookingWizard() {
               {step < 2 ? (
                 <Button
                   onClick={() => setStep(step + 1)}
-                  disabled={step === 0 && (!selectedCleaner || !selectedDate || !address)}
+                  disabled={step === 0 && (!selectedEmployee || !selectedDate || !address)}
                   className="flex-1"
                 >
                   Next

@@ -26,8 +26,8 @@ export default function CustomerBookPage() {
   async function loadCleaners() {
     if (!supabase) return
     const { data } = await supabase
-      .from('cleaners')
-      .select('*, profile:profiles!cleaners_profile_id_fkey(name, avatar_url)')
+      .from('employees')
+      .select('*, profile:profiles!employees_profile_id_fkey(name, avatar_url)')
       .eq('verified', true)
       .eq('active', true)
     if (data) setCleaners(data)
@@ -51,27 +51,27 @@ export default function CustomerBookPage() {
 
     if (!profile) return
 
-    const { data: customer } = await supabase
-      .from('customers')
+    const { data: managedClient } = await supabase
+      .from('managed_clients')
       .select('id')
       .eq('profile_id', user!.id)
       .maybeSingle()
 
-    let customerId = customer?.id
-    if (!customerId) {
+    let managedClientId = managedClient?.id
+    if (!managedClientId) {
       const { data: newC } = await supabase
-        .from('customers')
+        .from('managed_clients')
         .insert({ profile_id: user!.id })
         .select('id')
         .single()
-      if (newC) customerId = newC.id
+      if (newC) managedClientId = newC.id
     }
 
     const { data: booking } = await supabase
       .from('bookings')
       .insert({
-        customer_id: customerId,
-        cleaner_id: selected.id,
+        managed_client_id: managedClientId,
+        employee_id: selected.id,
         scheduled_date: date,
         duration: hours,
         amount: Math.round(total),

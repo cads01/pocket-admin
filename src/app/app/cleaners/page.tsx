@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/SupabaseProvider'
 import { useRouter } from 'next/navigation'
-import type { Cleaner } from '@/lib/supabase'
+import type { Employee } from '@/lib/supabase'
 import CleanerMap from '@/components/CleanerMap'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
@@ -18,20 +18,20 @@ import EmptyState from '@/components/ui/EmptyState'
 import Input from '@/components/ui/Input'
 import { Sparkles, Edit3, Plus, Search, User, Mail, Phone, MapPin, DollarSign, Star, Trash2, X, Check } from 'lucide-react'
 
-interface CleanerLocation {
-  cleaner_id: string
+interface EmployeeLocation {
+  employee_id: string
   latitude: number
   longitude: number
   updated_at: string
 }
 
-export default function CleanersPage() {
+export default function EmployeesPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
-  const [cleaners, setCleaners] = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [locations, setLocations] = useState<Map<string, CleanerLocation>>(new Map())
+  const [locations, setLocations] = useState<Map<string, EmployeeLocation>>(new Map())
   const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
@@ -39,23 +39,23 @@ export default function CleanersPage() {
     loadLocations()
 
     const channel = supabase
-      .channel('cleaner-locations-page')
+      .channel('employee-locations-page')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'cleaner_locations' },
-        (payload: RealtimePostgresChangesPayload<CleanerLocation>) => {
+        { event: '*', schema: 'public', table: 'employee_locations' },
+        (payload: RealtimePostgresChangesPayload<EmployeeLocation>) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const r = payload.new as CleanerLocation
+            const r = payload.new as EmployeeLocation
             setLocations((prev) => {
               const next = new Map(prev)
-              next.set(r.cleaner_id, r)
+              next.set(r.employee_id, r)
               return next
             })
           }
           if (payload.eventType === 'DELETE') {
-            const r = payload.old as CleanerLocation
+            const r = payload.old as EmployeeLocation
             setLocations((prev) => {
               const next = new Map(prev)
-              next.delete(r.cleaner_id)
+              next.delete(r.employee_id)
               return next
             })
           }
@@ -68,10 +68,10 @@ export default function CleanersPage() {
 
   async function loadLocations() {
     if (!supabase) return
-    const { data: locs } = await supabase.from('cleaner_locations').select('*')
+    const { data: locs } = await supabase.from('employee_locations').select('*')
     if (locs) {
-      const map = new Map<string, CleanerLocation>()
-      for (const loc of locs) map.set(loc.cleaner_id, loc)
+      const map = new Map<string, EmployeeLocation>()
+      for (const loc of locs) map.set(loc.employee_id, loc)
       setLocations(map)
     }
   }
@@ -90,14 +90,14 @@ export default function CleanersPage() {
   useEffect(() => {
     if (loading) return
     if (!user) { router.push('/login'); return }
-    loadCleaners()
+    loadEmployees()
   }, [user, loading])
 
-  async function loadCleaners() {
+  async function loadEmployees() {
     if (!supabase) return
     setPageLoading(true)
-    const { data } = await supabase.from('cleaners').select('*, profiles!inner(name, email, phone)')
-    if (data) setCleaners(data)
+    const { data } = await supabase.from('employees').select('*')
+    if (data) setEmployees(data)
     setPageLoading(false)
   }
 
@@ -110,10 +110,10 @@ export default function CleanersPage() {
   function openEdit(c: any) {
     setEditId(c.id)
     setForm({
-      name: c.profiles?.name || '',
+      name: c.name || '',
       business: c.business || '',
-      phone: c.profiles?.phone || '',
-      email: c.profiles?.email || '',
+      phone: c.phone || '',
+      email: c.email || '',
       bio: c.bio || '',
       services: c.services?.[0] || 'standard',
       active: c.active,
@@ -126,38 +126,52 @@ export default function CleanersPage() {
     if (!supabase) return
     if (!form.name) return
     if (editId) {
-      await supabase.from('cleaners').update({
+      await supabase.from('employees').update({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
         business: form.business,
         bio: form.bio,
         services: [form.services],
         active: form.active,
         verified: form.verified,
       }).eq('id', editId)
+    } else {
+      await supabase.from('employees').insert({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        business: form.business,
+        bio: form.bio,
+        services: [form.services],
+        active: form.active,
+        verified: form.verified,
+      })
     }
-    await loadCleaners()
+    await loadEmployees()
     setShowModal(false)
   }
 
   async function toggleActive(id: string, current: boolean) {
     if (!supabase) return
-    await supabase.from('cleaners').update({ active: !current }).eq('id', id)
-    await loadCleaners()
+    await supabase.from('employees').update({ active: !current }).eq('id', id)
+    await loadEmployees()
   }
 
   async function toggleVerify(id: string, current: boolean) {
     if (!supabase) return
-    await supabase.from('cleaners').update({ verified: !current }).eq('id', id)
-    await loadCleaners()
+    await supabase.from('employees').update({ verified: !current }).eq('id', id)
+    await loadEmployees()
   }
 
-  const active = cleaners.filter((c) => c.active).length
-  const verified = cleaners.filter((c) => c.verified).length
+  const active = employees.filter((c) => c.active).length
+  const verified = employees.filter((c) => c.verified).length
 
   const columns = [
     {
       key: 'name',
       label: 'Name',
-      render: (c: any) => <span className="font-medium">{c.profiles?.name || '—'}</span>,
+      render: (c: any) => <span className="font-medium">{c.name || '—'}</span>,
     },
     {
       key: 'business',
@@ -167,7 +181,7 @@ export default function CleanersPage() {
     {
       key: 'phone',
       label: 'Phone',
-      render: (c: any) => <span className="text-muted">{c.profiles?.phone || '—'}</span>,
+      render: (c: any) => <span className="text-muted">{c.phone || '—'}</span>,
     },
     {
       key: 'status',
@@ -250,19 +264,19 @@ export default function CleanersPage() {
         <>
           <div className="flex items-center justify-between mb-4 md:mb-6 animate-fade-in">
             <div>
-              <h2 className="text-lg md:text-xl font-bold">Cleaners</h2>
+              <h2 className="text-lg md:text-xl font-bold">Employees</h2>
               <p className="text-sm text-muted">Service providers on the platform</p>
             </div>
-            <Button onClick={openAdd} icon={Plus}>Add Cleaner</Button>
+            <Button onClick={openAdd} icon={Plus}>Add Employee</Button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6 animate-fade-in">
-            <StatsCard label="Total" value={cleaners.length} accent="accent" />
+            <StatsCard label="Total" value={employees.length} accent="accent" />
             <StatsCard label="Active" value={active} accent="white" />
             <StatsCard label="Verified" value={verified} accent="warning" />
             <StatsCard
               label="Earnings"
-              value={`$${cleaners.reduce((s, c) => s + (c.total_earnings || 0), 0).toFixed(0)}`}
+              value={`$${employees.reduce((s, c) => s + (c.total_earnings || 0), 0).toFixed(0)}`}
               accent="white"
             />
           </div>
@@ -273,13 +287,13 @@ export default function CleanersPage() {
             <div className="min-w-[600px]">
             <Table
               columns={columns}
-              data={cleaners}
+              data={employees}
               emptyState={
                 <EmptyState
                   icon={<Sparkles size={48} className="text-muted" />}
-                  title="No cleaners yet"
-                  description="Add your first cleaner to get started!"
-                  action={{ label: 'Add Cleaner', onClick: openAdd }}
+                  title="No employees yet"
+                  description="Add your first employee to get started!"
+                  action={{ label: 'Add Employee', onClick: openAdd }}
                 />
               }
             />
@@ -289,7 +303,7 @@ export default function CleanersPage() {
           <Modal
             open={showModal}
             onClose={() => setShowModal(false)}
-            title={`${editId ? 'Edit' : 'Add'} Cleaner`}
+            title={`${editId ? 'Edit' : 'Add'} Employee`}
           >
             <div className="space-y-3">
               <Input
@@ -360,7 +374,7 @@ export default function CleanersPage() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button onClick={save}>{editId ? 'Update' : 'Add Cleaner'}</Button>
+              <Button onClick={save}>{editId ? 'Update' : 'Add Employee'}</Button>
             </div>
           </Modal>
         </>
