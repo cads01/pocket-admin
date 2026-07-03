@@ -6,7 +6,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 const variantMap: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-[#0a0a0a] font-semibold hover:bg-accent-hover',
+  primary: 'bg-accent text-[#0a0a0a] font-semibold hover:bg-accent-hover btn-shine',
   secondary: 'bg-surface-hover text-muted hover:text-white hover:bg-[#2a2a2a]',
   ghost: 'bg-transparent text-muted hover:text-white hover:bg-surface-hover',
   danger: 'bg-danger-dim text-danger hover:bg-[rgba(255,80,80,0.2)]',

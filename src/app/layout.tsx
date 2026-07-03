@@ -25,7 +25,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}<SpeedInsights /></body>
+      <body>
+        <div className="orb orb-1" />
+        <div className="orb orb-2" />
+        <div className="orb orb-3" />
+        <div className="bg-overlay" />
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   )
 }

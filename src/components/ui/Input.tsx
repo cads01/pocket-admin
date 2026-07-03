@@ -22,7 +22,7 @@ export default function Input({
         )}
         <input
           {...props}
-          className={`w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus:outline-none focus:border-input-focus transition-colors placeholder:text-muted-foreground disabled:opacity-50 ${
+          className={`w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus-glow transition-colors placeholder:text-muted-foreground disabled:opacity-50 ${
             Icon ? 'pl-9' : ''
           } ${error ? 'border-danger' : ''} ${className}`}
         />

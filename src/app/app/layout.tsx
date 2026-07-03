@@ -7,6 +7,8 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import Link from 'next/link'
 import ToastProvider from '@/components/ui/ToastProvider'
 import RouteLoader from '@/components/RouteLoader'
+
+
 import {
   LayoutDashboard,
   Calendar,
@@ -25,11 +27,16 @@ import {
   DollarSign,
   Menu,
   X,
+  Receipt,
+  FileText,
+  MessageSquare,
+  Clock,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/app' },
   { icon: Calendar, label: 'Bookings', href: '/app/bookings' },
+  { icon: Clock, label: 'Schedule', href: '/app/schedule' },
   { icon: Sparkles, label: 'Cleaners', href: '/app/cleaners' },
   { icon: Users, label: 'Clients', href: '/app/clients' },
   { icon: UserPlus, label: 'Employees', href: '/app/employees' },
@@ -38,9 +45,12 @@ const NAV_ITEMS = [
   { icon: Search, label: 'Inspections', href: '/app/inspections' },
   { icon: Scale, label: 'Disputes', href: '/app/disputes' },
   { icon: Banknote, label: 'Invoices', href: '/app/invoices' },
+  { icon: Receipt, label: 'Expenses', href: '/app/expenses' },
+  { icon: FileText, label: 'Tax Center', href: '/app/tax' },
   { icon: Star, label: 'Reviews', href: '/app/reviews' },
   { icon: Video, label: 'Videos', href: '/app/videos' },
   { icon: DollarSign, label: 'Payouts', href: '/app/payouts' },
+  { icon: MessageSquare, label: 'Templates', href: '/app/templates' },
   { icon: Settings, label: 'Settings', href: '/app/settings' },
 ]
 
@@ -67,13 +77,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <>
         <div className="p-5 border-b border-card-border">
           <Link href="/app" className="no-underline" onClick={closeMobile}>
-            <h1 className={`font-bold tracking-tight ${collapsed ? 'text-center text-lg' : 'text-xl'}`}>
+            <h1 className={`font-bold tracking-tight ${collapsed ? 'text-center text-lg' : 'text-xl bg-gradient-to-r from-[#00d28e] to-[#00b8d4] bg-clip-text text-transparent'}`}>
               {collapsed ? (
                 <span className="text-accent">P</span>
               ) : (
-                <>
-                  Pocket <span className="text-accent">Admin</span>
-                </>
+                'Pocket Admin'
               )}
             </h1>
           </Link>
@@ -150,8 +158,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-card-border">
-          <span className="font-bold text-lg">
-            Pocket <span className="text-accent">Admin</span>
+          <span className="font-bold text-lg bg-gradient-to-r from-[#00d28e] to-[#00b8d4] bg-clip-text text-transparent">
+            Pocket Admin
           </span>
           <button
             onClick={closeMobile}
@@ -211,8 +219,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           >
             <Menu size={20} />
           </button>
-          <span className="font-bold text-sm">
-            Pocket <span className="text-accent">Admin</span>
+          <span className="font-bold text-sm bg-gradient-to-r from-[#00d28e] to-[#00b8d4] bg-clip-text text-transparent">
+            Pocket Admin
           </span>
         </div>
 
