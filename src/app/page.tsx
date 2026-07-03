@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { SupabaseProvider, useSupabase } from '@/components/SupabaseProvider'
 
-export default function LandingPage() {
+function LandingContent() {
+  const { supabase, loading } = useSupabase()
   const router = useRouter()
   const [checking, setChecking] = useState(true)
   const [name, setName] = useState('')
@@ -18,15 +19,16 @@ export default function LandingPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) { router.push('/app'); return }
+    if (loading) return
+    supabase?.auth.getUser().then(({ data: { user } }) => {
+      if (user) { router.replace('/app'); return }
       setChecking(false)
     })
-  }, [])
+  }, [loading])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name || !email) return
+    if (!name || !email || !supabase) return
     setSubmitting(true)
     setError('')
 
@@ -169,5 +171,13 @@ export default function LandingPage() {
         Pocket Admin — You clean. We do everything else.
       </footer>
     </div>
+  )
+}
+
+export default function LandingPage() {
+  return (
+    <SupabaseProvider>
+      <LandingContent />
+    </SupabaseProvider>
   )
 }

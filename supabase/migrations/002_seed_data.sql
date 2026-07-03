@@ -51,18 +51,18 @@ insert into managed_clients (name, business, phone, schedule, price_per_job, sin
   ('Green Cafe', 'Green Cafe LLC', '(555) 444-4444', 'Daily after close', 80.00, now() - interval '14 days', 400.00, 'trial'),
   ('Hillside School', 'Hillside Academy', '(555) 555-5555', 'Monthly 1st Sat', 500.00, now() - interval '120 days', 0.00, 'churned');
 
--- Cleaners
+-- Cleaners (only insert if profiles exist)
 insert into cleaners (profile_id, business, hourly_rate, verified, active, rating, completed_jobs, total_earnings)
 select id, 'Sparkle Clean Co.', 55.00, true, true, 4.8, 47, 12500.00
-from profiles where email = (select email from auth.users limit 1)
+from profiles
+where id is not null
+limit 1
 on conflict (profile_id) do nothing;
 
 insert into cleaners (profile_id, business, hourly_rate, verified, active, rating, completed_jobs, total_earnings)
 select id, 'Maid Pro Services', 50.00, true, true, 4.9, 82, 21000.00
-from profiles where email = (select email from auth.users limit 1 offset 1)
+from profiles
+where id is not null
+offset 1
+limit 1
 on conflict (profile_id) do nothing;
-
--- If only one user exists, add a second cleaner without profile link
-insert into cleaners (id, business, hourly_rate, verified, active, rating, completed_jobs, total_earnings)
-values (gen_random_uuid(), 'Eco Clean Team', 45.00, false, true, 4.6, 23, 5800.00)
-on conflict do nothing;
