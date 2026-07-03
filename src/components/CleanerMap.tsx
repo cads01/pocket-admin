@@ -48,16 +48,18 @@ export default function CleanerMap() {
     const { data: locs } = await supabase.from('cleaner_locations').select('*')
     if (locs) setLocations(locs)
 
-    const { data: cls } = await supabase.from('employees').select('id, profile_id')
+    const { data: cls } = await supabase.from('employees').select('id, name, client_id')
     if (cls) {
-      const ids = cls.map((c) => c.profile_id)
-      const { data: profs } = await supabase.from('profiles').select('id, name').in('id', ids)
-      const map: Record<string, string> = {}
-      for (const c of cls) {
-        const p = profs?.find((pr) => pr.id === c.profile_id)
-        map[c.id] = p?.name || c.id.slice(0, 8)
+      const ids = cls.map((c) => c.client_id).filter(Boolean) as string[]
+      if (ids.length > 0) {
+        const { data: profs } = await supabase.from('profiles').select('id, name').in('id', ids)
+        const map: Record<string, string> = {}
+        for (const c of cls) {
+          const p = profs?.find((pr) => pr.id === c.client_id)
+          map[c.id] = p?.name || c.name || c.id.slice(0, 8)
+        }
+        setEmployees(map)
       }
-      setEmployees(map)
     }
   }
 

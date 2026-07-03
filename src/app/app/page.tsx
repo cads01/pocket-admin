@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [managedClients, setManagedClients] = useState<ManagedClient[]>([])
   const [waitlist, setWaitlist] = useState<any[]>([])
   const [warnings, setWarnings] = useState<EmployeeWarning[]>([])
+  const [dataError, setDataError] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading) return
@@ -71,7 +72,11 @@ export default function DashboardPage() {
       if (wErr) console.error('Failed to load waitlist:', wErr)
       else setWaitlist(w)
 
-      const { data: warns, error: warnsErr } = await supabase.from('employee_warnings').select('*, employee:employees(name)').is('resolved_at', null).order('created_at', { ascending: false })
+      let warns = null, warnsErr = null
+      try {
+        const result = await supabase.from('employee_warnings').select('*, employee:employees(name)').is('resolved_at', null).order('created_at', { ascending: false })
+        warns = result.data; warnsErr = result.error
+      } catch (e) { warnsErr = e }
       if (warnsErr) console.error('Failed to load warnings:', warnsErr)
       else setWarnings(warns as any)
     } else if (p?.role === 'employee') {
@@ -341,6 +346,13 @@ export default function DashboardPage() {
             accent="purple"
           />
         </div>
+      )}
+
+      {(!profile.role || (profile.role !== 'admin' && profile.role !== 'employee')) && (
+        <Card padding="lg" className="text-center">
+          <h3 className="text-base font-semibold mb-2">Welcome to Pocket Admin</h3>
+          <p className="text-sm text-muted">Your account is set up. Contact your business admin to get access to the dashboard.</p>
+        </Card>
       )}
     </div>
   )

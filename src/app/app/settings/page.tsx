@@ -7,7 +7,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { RefreshCw, Save } from 'lucide-react'
+import { RefreshCw, Save, Building2 } from 'lucide-react'
 import { useToast } from '@/components/ui/ToastProvider'
 
 export default function SettingsPage() {
@@ -16,6 +16,8 @@ export default function SettingsPage() {
   const { success, error } = useToast()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [business, setBusiness] = useState('')
+  const [role, setRole] = useState('')
   const [saving, setSaving] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
 
@@ -28,14 +30,20 @@ export default function SettingsPage() {
   async function load() {
     if (!supabase) return
     setPageLoading(true)
-    const { data } = await supabase
+    const { data, error: loadErr } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, business:businesses(name)')
       .eq('id', user!.id)
       .single()
+    if (loadErr) {
+      console.error('Failed to load profile:', loadErr)
+      error('Failed to load profile')
+    }
     if (data) {
       setName(data.name || '')
       setPhone(data.phone || '')
+      setRole(data.role || '')
+      setBusiness((data as any).business?.name || '')
     }
     setPageLoading(false)
   }
@@ -43,14 +51,17 @@ export default function SettingsPage() {
   async function save() {
     if (!supabase) return
     setSaving(true)
-    try {
-      await supabase.from('profiles').update({ name, phone }).eq('id', user!.id)
-      setSaving(false)
-      success('Settings saved')
-    } catch {
+    const { error: saveErr } = await supabase
+      .from('profiles')
+      .update({ name, phone })
+      .eq('id', user!.id)
+    if (saveErr) {
+      console.error('Failed to save:', saveErr)
       error('Failed to save settings')
-      setSaving(false)
+    } else {
+      success('Settings saved')
     }
+    setSaving(false)
   }
 
   return (
@@ -61,7 +72,7 @@ export default function SettingsPage() {
         <div className="space-y-6 animate-fade-in">
           <div className="mb-6">
             <h2 className="text-xl font-bold text-foreground">Settings</h2>
-            <p className="text-sm text-muted">Platform configuration</p>
+            <p className="text-sm text-muted">Manage your account and business</p>
           </div>
 
           <Card padding="lg" className="animate-fade-in">
@@ -83,11 +94,21 @@ export default function SettingsPage() {
                 value={user?.email || ''}
                 disabled
               />
+              <div className="text-xs text-muted">Role: <span className="text-white font-medium">{role || '—'}</span></div>
               <Button onClick={save} disabled={saving} loading={saving} icon={Save}>
                 Save
               </Button>
             </div>
           </Card>
+
+          {business && (
+            <Card padding="lg" className="animate-fade-in">
+              <h3 className="font-semibold mb-4 flex items-center gap-2"><Building2 size={16} className="text-accent" /> Business</h3>
+              <div className="space-y-3">
+                <Input label="Business Name" value={business} disabled />
+              </div>
+            </Card>
+          )}
 
           <Card padding="lg" className="animate-fade-in">
             <h3 className="font-semibold mb-4 text-warning">Data</h3>
