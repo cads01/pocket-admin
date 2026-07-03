@@ -79,7 +79,6 @@ end $$;
 alter table bookings add column if not exists managed_client_id uuid references managed_clients(id) on delete set null;
 
 -- Drop old marketplace FK constraints (but keep columns for backward compat during migration)
--- We can't easily drop NOT NULL constraints without knowing the data, so use a safe approach
 alter table bookings alter column customer_id drop not null;
 alter table bookings alter column cleaner_id drop not null;
 
@@ -90,6 +89,7 @@ drop policy if exists "Manage own bookings" on bookings;
 do $$
 begin
   if to_regclass('public.employees') is not null then
+    execute 'alter table bookings add column if not exists employee_id uuid references employees(id) on delete set null';
     execute 'create policy "Manage own bookings" on bookings
       for all using (
         exists (select 1 from managed_clients where id = bookings.managed_client_id and business_id in (select id from businesses where owner_id = auth.uid()))
@@ -108,7 +108,12 @@ end $$;
 -- 6. REBUILD reviews — use managed_client + employee
 -- ============================================================
 alter table reviews add column if not exists managed_client_id uuid references managed_clients(id) on delete cascade;
--- Keep employee_id (already added)
+do $$
+begin
+  if to_regclass('public.employees') is not null then
+    execute 'alter table reviews add column if not exists employee_id uuid references employees(id) on delete set null';
+  end if;
+end $$;
 
 drop policy if exists "Admin manage reviews" on reviews;
 drop policy if exists "Manage own reviews" on reviews;
@@ -254,7 +259,6 @@ end $$;
 create index if not exists idx_profiles_business on profiles(business_id);
 create index if not exists idx_managed_clients_business on managed_clients(business_id);
 create index if not exists idx_bookings_client on bookings(managed_client_id);
-create index if not exists idx_bookings_employee on bookings(employee_id);
 create index if not exists idx_bookings_status on bookings(status);
 create index if not exists idx_bookings_scheduled on bookings(scheduled_date);
 create index if not exists idx_reviews_booking on reviews(booking_id);
@@ -266,6 +270,8 @@ do $$ begin
   if to_regclass('public.employees') is not null then
     execute 'create index if not exists idx_employees_business on employees(business_id)';
     execute 'create index if not exists idx_employees_status on employees(status)';
+    execute 'create index if not exists idx_bookings_employee on bookings(employee_id)';
+    execute 'create index if not exists idx_reviews_employee on reviews(employee_id)';
   end if;
   if to_regclass('public.clock_events') is not null then
     execute 'create index if not exists idx_clock_events_employee on clock_events(employee_id)';
