@@ -205,15 +205,15 @@ create policy "Manage own inspections" on inspection_reports
     business_id in (select id from businesses where owner_id = auth.uid())
   );
 
--- Waitlist signups — only the user who signed up can view their entry
+-- Waitlist signups — anon insert allowed, select by authenticated users
 drop policy if exists "Admin all waitlist" on waitlist_signups;
 drop policy if exists "Manage own waitlist" on waitlist_signups;
-create policy "View own waitlist" on waitlist_signups
-  for select using (
-    auth.uid() = user_id
-    or auth.role() = 'service_role'
-  );
--- anon insert still allowed (from landing page)
+drop policy if exists "View own waitlist" on waitlist_signups;
+drop policy if exists "Anyone can insert waitlist" on waitlist_signups;
+create policy "Anyone can insert waitlist" on waitlist_signups
+  for insert with check (true);
+create policy "View waitlist" on waitlist_signups
+  for select using (auth.role() = 'authenticated');
 
 -- Cleaner locations — update for employee_id
 drop policy if exists "Parties view locations" on cleaner_locations;
