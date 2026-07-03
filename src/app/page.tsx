@@ -37,7 +37,11 @@ function LandingContent() {
     })
 
     if (err) {
-      setError(err.message)
+      if (err.message?.includes('row-level security')) {
+        setError('Server configuration issue — please try again later.')
+      } else {
+        setError(err.message)
+      }
       setSubmitting(false)
       return
     }
