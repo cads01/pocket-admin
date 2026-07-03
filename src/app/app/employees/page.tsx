@@ -138,7 +138,7 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-6">
       {pageLoading ? (
         <div className="space-y-6">
           <LoadingSkeleton type="stats" />
@@ -149,7 +149,7 @@ export default function EmployeesPage() {
         <div className="space-y-6 animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-foreground">Employees</h2>
+              <h2 className="text-lg md:text-xl font-bold text-foreground">Employees</h2>
               <p className="text-sm text-muted">Workforce management</p>
             </div>
             <Button onClick={openAdd} icon={UserPlus}>
@@ -157,7 +157,7 @@ export default function EmployeesPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard label="Total" value={employees.length} accent="accent" />
             <StatsCard label="Active" value={employees.filter((e) => e.status === 'active').length} accent="white" />
             <StatsCard label="On Job" value={onJob} accent="warning" />
@@ -193,7 +193,7 @@ export default function EmployeesPage() {
               description="Try adjusting your filters or search query"
             />
           ) : (
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {filtered.map((e) => (
                 <Card
                   key={e.id}
@@ -243,7 +243,7 @@ export default function EmployeesPage() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label="Email"
                   value={form.email}
@@ -272,7 +272,7 @@ export default function EmployeesPage() {
                   <option value="both">Both</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label="Hourly Rate ($)"
                   type="number"

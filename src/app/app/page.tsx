@@ -90,8 +90,8 @@ export default function DashboardPage() {
 
   if (loading || !profile) {
     return (
-      <div className="p-8 animate-fade-in">
-        <div className="flex items-center justify-between mb-8">
+      <div className="p-4 md:p-6 animate-fade-in">
+        <div className="flex items-center justify-between mb-4 md:mb-6">
           <div>
             <LoadingSkeleton type="text" />
           </div>
@@ -121,10 +121,10 @@ export default function DashboardPage() {
     .slice(0, 8)
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8 animate-fade-in">
+    <div className="p-4 md:p-6">
+      <div className="flex items-center justify-between mb-4 md:mb-6 animate-fade-in">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-lg md:text-xl font-bold">
             Welcome back, {profile.name || 'User'}
           </h2>
           <p className="text-sm text-muted">
@@ -139,7 +139,7 @@ export default function DashboardPage() {
 
       {profile.role === 'admin' && (
         <>
-          <div className="grid grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6">
             <StatsCard
               label="Waitlist Signups"
               value={waitlist.length}
@@ -198,8 +198,8 @@ export default function DashboardPage() {
           )}
 
           {/* Waitlist */}
-          <Card variant="default" className="mb-6 overflow-hidden p-0 animate-fade-in-up">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
+          <Card variant="default" className="mb-4 md:mb-6 overflow-x-auto p-0 animate-fade-in-up">
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-card-border">
               <h3 className="font-semibold">Waitlist Signups</h3>
               <Button variant="secondary" size="sm">📥 Export CSV</Button>
             </div>
@@ -210,6 +210,7 @@ export default function DashboardPage() {
                 description="Post in Facebook groups and they'll appear here."
               />
             ) : (
+              <div className="min-w-[600px]">
               <Table
                 columns={[
                   { key: 'name', label: 'Name', render: (w: any) => <span className="font-medium">{w.name}</span> },
@@ -222,12 +223,13 @@ export default function DashboardPage() {
                 ]}
                 data={waitlist}
               />
+              </div>
             )}
           </Card>
 
           {/* Managed Clients */}
-          <Card variant="default" className="mb-6 overflow-hidden p-0 animate-fade-in-up">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
+          <Card variant="default" className="mb-4 md:mb-6 overflow-x-auto p-0 animate-fade-in-up">
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-card-border">
               <h3 className="font-semibold">Client Management</h3>
               <div className="flex gap-2">
                 <Button variant="primary" size="sm">➕ Add Client</Button>
@@ -241,6 +243,7 @@ export default function DashboardPage() {
                 description="Convert your first waitlist signup."
               />
             ) : (
+              <div className="min-w-[600px]">
               <Table
                 columns={[
                   { key: 'name', label: 'Name', render: (c: any) => <span className="font-medium">{c.name}</span> },
@@ -259,6 +262,7 @@ export default function DashboardPage() {
                 ]}
                 data={managedClients}
               />
+              </div>
             )}
           </Card>
 
@@ -266,11 +270,12 @@ export default function DashboardPage() {
             <CleanerMap />
           </div>
 
-          <Card variant="default" className="animate-fade-in-up">
+          <Card variant="default" className="overflow-x-auto animate-fade-in-up">
             <h3 className="font-semibold mb-4">Recent Bookings</h3>
             {upcomingJobs.length === 0 ? (
               <p className="text-muted-foreground text-sm">No upcoming bookings</p>
             ) : (
+              <div className="min-w-[600px]">
               <Table
                 columns={[
                   { key: 'id', label: 'Customer', render: (b: any) => <span className="font-medium">{b.id.slice(0, 8)}</span> },
@@ -281,13 +286,14 @@ export default function DashboardPage() {
                 ]}
                 data={upcomingJobs}
               />
+              </div>
             )}
           </Card>
         </>
       )}
 
       {profile.role === 'cleaner' && cleaner && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatsCard
             label="Today's Jobs"
             value={todayJobs.length}

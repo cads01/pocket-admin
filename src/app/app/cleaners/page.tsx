@@ -240,7 +240,7 @@ export default function CleanersPage() {
   ]
 
   return (
-    <div className="p-8 animate-fade-in">
+    <div className="p-4 md:p-6 animate-fade-in">
       {pageLoading ? (
         <div className="space-y-6 animate-fade-in">
           <LoadingSkeleton type="stats" />
@@ -248,15 +248,15 @@ export default function CleanersPage() {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-4 md:mb-6 animate-fade-in">
             <div>
-              <h2 className="text-xl font-bold">Cleaners</h2>
+              <h2 className="text-lg md:text-xl font-bold">Cleaners</h2>
               <p className="text-sm text-muted">Service providers on the platform</p>
             </div>
             <Button onClick={openAdd} icon={Plus}>Add Cleaner</Button>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 mb-6 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6 animate-fade-in">
             <StatsCard label="Total" value={cleaners.length} accent="accent" />
             <StatsCard label="Active" value={active} accent="white" />
             <StatsCard label="Verified" value={verified} accent="warning" />
@@ -269,7 +269,8 @@ export default function CleanersPage() {
 
           <CleanerMap />
 
-          <Card variant="default" padding="sm" className="overflow-hidden animate-fade-in">
+          <Card variant="default" padding="sm" className="overflow-x-auto animate-fade-in">
+            <div className="min-w-[600px]">
             <Table
               columns={columns}
               data={cleaners}
@@ -282,6 +283,7 @@ export default function CleanersPage() {
                 />
               }
             />
+            </div>
           </Card>
 
           <Modal
@@ -300,7 +302,7 @@ export default function CleanersPage() {
                 value={form.business}
                 onChange={(e) => setForm({ ...form, business: e.target.value })}
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label="Phone"
                   value={form.phone}
@@ -320,7 +322,7 @@ export default function CleanersPage() {
                   className="w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus:outline-none focus:border-input-focus resize-none h-20 placeholder:text-muted-foreground"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground block mb-1">Services</label>
                   <select

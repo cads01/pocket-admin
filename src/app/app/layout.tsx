@@ -23,6 +23,8 @@ import {
   LogOut,
   Banknote,
   DollarSign,
+  Menu,
+  X,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -46,6 +48,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { supabase } = useSupabase()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   async function handleLogout() {
     if (!supabase) return
@@ -55,15 +58,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
 
-  return (
-    <div className="flex h-screen bg-background">
-      <aside
-        className={`${
-          collapsed ? 'w-16' : 'w-56'
-        } bg-surface border-r border-card-border flex flex-col transition-all duration-200 flex-shrink-0`}
-      >
+  function closeMobile() {
+    setMobileOpen(false)
+  }
+
+  function NavContent() {
+    return (
+      <>
         <div className="p-5 border-b border-card-border">
-          <Link href="/app" className="no-underline">
+          <Link href="/app" className="no-underline" onClick={closeMobile}>
             <h1 className={`font-bold tracking-tight ${collapsed ? 'text-center text-lg' : 'text-xl'}`}>
               {collapsed ? (
                 <span className="text-accent">P</span>
@@ -83,6 +86,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={closeMobile}
                 className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors no-underline ${
                   isActive
                     ? 'text-accent bg-accent-dim border-r-2 border-accent'
@@ -101,7 +105,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-card-border p-3 space-y-1">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center gap-3 py-2 px-3 text-xs text-muted-foreground hover:text-muted transition-colors cursor-pointer"
+            className="hidden md:flex w-full items-center gap-3 py-2 px-3 text-xs text-muted-foreground hover:text-muted transition-colors cursor-pointer"
           >
             {collapsed ? (
               <span className="w-6 flex items-center justify-center">→</span>
@@ -125,13 +129,99 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             )}
           </button>
         </div>
+      </>
+    )
+  }
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden animate-fade-in"
+          onClick={closeMobile}
+        />
+      )}
+
+      {/* Mobile sidebar (overlay) */}
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-surface border-r border-card-border flex flex-col transition-transform duration-200 md:hidden ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-card-border">
+          <span className="font-bold text-lg">
+            Pocket <span className="text-accent">Admin</span>
+          </span>
+          <button
+            onClick={closeMobile}
+            className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <nav className="flex-1 py-2 overflow-y-auto">
+          {NAV_ITEMS.map((item) => {
+            const isActive = currentPath === item.href
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={closeMobile}
+                className={`flex items-center gap-3 px-5 py-3 text-sm transition-colors no-underline ${
+                  isActive
+                    ? 'text-accent bg-accent-dim border-r-2 border-accent'
+                    : 'text-muted hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span className="w-6 flex items-center justify-center">
+                  <item.icon size={18} />
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
+        <div className="border-t border-card-border p-3">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 py-2.5 px-3 text-sm text-muted-foreground hover:text-red-400 transition-colors cursor-pointer"
+          >
+            <LogOut size={16} />
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside
+        className={`hidden md:flex ${
+          collapsed ? 'w-16' : 'w-56'
+        } bg-surface border-r border-card-border flex-col transition-all duration-200 flex-shrink-0`}
+      >
+        <NavContent />
       </aside>
 
       <main className="flex-1 overflow-y-auto relative">
+        {/* Mobile top bar */}
+        <div className="sticky top-0 z-30 md:hidden flex items-center gap-3 px-4 py-3 bg-background border-b border-card-border">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer"
+          >
+            <Menu size={20} />
+          </button>
+          <span className="font-bold text-sm">
+            Pocket <span className="text-accent">Admin</span>
+          </span>
+        </div>
+
         <Suspense fallback={null}>
           <RouteLoader />
         </Suspense>
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <div className="p-4 md:p-6">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </div>
       </main>
     </div>
   )

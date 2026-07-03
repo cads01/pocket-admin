@@ -243,7 +243,7 @@ export default function BookingWizard() {
   ]
 
   return (
-    <div className="p-8 animate-fade-in">
+    <div className="p-4 md:p-6 animate-fade-in">
       {pageLoading ? (
         <div className="space-y-6">
           <LoadingSkeleton type="stats" />
@@ -251,15 +251,15 @@ export default function BookingWizard() {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-6 animate-fade-in-up">
+          <div className="flex items-center justify-between mb-4 md:mb-6 animate-fade-in-up">
             <div>
-              <h2 className="text-xl font-bold">Bookings</h2>
+              <h2 className="text-lg md:text-xl font-bold">Bookings</h2>
               <p className="text-sm text-muted">Room-by-room booking wizard</p>
             </div>
             <Button icon={Plus} onClick={() => setShowWizard(true)}>New Booking</Button>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 mb-6 animate-slide-down">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6 animate-slide-down">
             <StatsCard label="Total Bookings" value={stats.total} icon={Calendar} />
             <StatsCard label="Revenue" value={`$${stats.revenue}`} icon={DollarSign} />
             <StatsCard label="In Progress" value={stats.active} icon={Clock} accent="info" />
@@ -448,11 +448,13 @@ export default function BookingWizard() {
                 />
               </Card>
             ) : (
-              <Card className="overflow-hidden !p-0">
+              <Card className="overflow-x-auto !p-0">
+                <div className="min-w-[600px]">
                 <Table<Booking>
                   columns={columns}
                   data={bookings}
                 />
+                </div>
               </Card>
             )}
           </div>

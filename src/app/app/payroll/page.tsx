@@ -167,7 +167,7 @@ export default function PayrollPage() {
   ]
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-6">
       {pageLoading ? (
         <div className="space-y-6">
           <LoadingSkeleton type="stats" />
@@ -177,7 +177,7 @@ export default function PayrollPage() {
         <div className="space-y-6 animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-foreground">Payroll</h2>
+              <h2 className="text-lg md:text-xl font-bold text-foreground">Payroll</h2>
               <p className="text-sm text-muted">Auto-calculated earnings per employee</p>
             </div>
             <Button
@@ -189,7 +189,7 @@ export default function PayrollPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard label="Total Pending" value={`$${pendingTotal.toFixed(0)}`} accent="warning" />
             <StatsCard label="Total Paid" value={`$${paidTotal.toFixed(0)}`} accent="accent" />
             <StatsCard
@@ -224,7 +224,8 @@ export default function PayrollPage() {
             )}
           </div>
 
-          <Card padding="sm" className="p-0 overflow-hidden animate-fade-in">
+          <Card padding="sm" className="p-0 overflow-x-auto animate-fade-in">
+            <div className="min-w-[600px]">
             <Table
               columns={columns}
               data={records}
@@ -236,6 +237,7 @@ export default function PayrollPage() {
                 />
               }
             />
+            </div>
           </Card>
         </div>
       )}

@@ -60,7 +60,7 @@ export default function ClientsPage() {
   ]
 
   return (
-    <div className="p-8 animate-fade-in">
+    <div className="p-4 md:p-6 animate-fade-in">
       {pageLoading ? (
         <div className="space-y-6">
           <LoadingSkeleton type="stats" />
@@ -69,17 +69,18 @@ export default function ClientsPage() {
       ) : (
         <div className="space-y-6">
           <div className="animate-fade-in-up">
-            <h2 className="text-xl font-bold">Clients</h2>
+            <h2 className="text-lg md:text-xl font-bold">Clients</h2>
             <p className="text-sm text-muted">End customers looking for cleaning services</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <StatsCard label="Total Clients" value={customers.length} accent="purple" />
             <StatsCard label="Active" value={active} accent="accent" />
             <StatsCard label="Total Spent" value={`$${totalSpent.toFixed(0)}`} accent="white" />
           </div>
 
-          <Card padding="sm" className="animate-fade-in-up">
+          <Card padding="sm" className="overflow-x-auto animate-fade-in-up">
+            <div className="min-w-[600px]">
             <Table
               columns={columns}
               data={customers}
@@ -91,6 +92,7 @@ export default function ClientsPage() {
                 />
               }
             />
+            </div>
           </Card>
         </div>
       )}
