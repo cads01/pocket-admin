@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: Request) {
   const body = await req.text()
@@ -18,20 +17,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
   if (event.type === 'payment_intent.succeeded') {
@@ -39,10 +28,12 @@ export async function POST(req: Request) {
     const bookingId = pi.metadata?.booking_id
 
     if (bookingId) {
-      await supabase
+      const { error } = await supabase
         .from('bookings')
         .update({ status: 'completed', payment_intent_id: pi.id })
         .eq('id', bookingId)
+
+      if (error) console.error('Webhook: failed to update booking:', error)
     }
   }
 
@@ -51,10 +42,12 @@ export async function POST(req: Request) {
     const bookingId = pi.metadata?.booking_id
 
     if (bookingId) {
-      await supabase
+      const { error } = await supabase
         .from('bookings')
         .update({ payment_status: 'failed' })
         .eq('id', bookingId)
+
+      if (error) console.error('Webhook: failed to update payment failure:', error)
     }
   }
 

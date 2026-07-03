@@ -48,7 +48,7 @@ export default function ConfirmDialog({
             <AlertTriangle size={22} className={variantMap[variant]} />
             <h3 className="text-base font-bold">{title}</h3>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer">
+          <button onClick={onClose} aria-label="Close dialog" className="p-1 rounded-lg text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer">
             <X size={16} />
           </button>
         </div>

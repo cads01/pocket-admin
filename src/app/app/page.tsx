@@ -42,46 +42,54 @@ export default function DashboardPage() {
 
   async function loadData() {
     if (!supabase) return
-    const { data: p } = await supabase
+    const { data: p, error: profileErr } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user!.id)
       .single()
+    if (profileErr) { console.error('Failed to load profile:', profileErr); return }
     if (p) setProfile(p)
 
     if (p?.role === 'admin') {
-      const { data: b } = await supabase
+      const { data: b, error: bErr } = await supabase
         .from('bookings')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50)
-      if (b) setBookings(b)
+      if (bErr) console.error('Failed to load bookings:', bErr)
+      else setBookings(b)
 
-      const { data: emp } = await supabase.from('employees').select('*')
-      if (emp) setEmployees(emp)
+      const { data: emp, error: empErr } = await supabase.from('employees').select('*')
+      if (empErr) console.error('Failed to load employees:', empErr)
+      else setEmployees(emp)
 
-      const { data: mc } = await supabase.from('managed_clients').select('*').order('since', { ascending: false })
-      if (mc) setManagedClients(mc)
+      const { data: mc, error: mcErr } = await supabase.from('managed_clients').select('*').order('since', { ascending: false })
+      if (mcErr) console.error('Failed to load clients:', mcErr)
+      else setManagedClients(mc)
 
-      const { data: w } = await supabase.from('waitlist_signups').select('*').order('signed_up_at', { ascending: false })
-      if (w) setWaitlist(w)
+      const { data: w, error: wErr } = await supabase.from('waitlist_signups').select('*').order('signed_up_at', { ascending: false })
+      if (wErr) console.error('Failed to load waitlist:', wErr)
+      else setWaitlist(w)
 
-      const { data: warns } = await supabase.from('employee_warnings').select('*, employee:employees(name)').is('resolved_at', null).order('created_at', { ascending: false })
-      if (warns) setWarnings(warns as any)
+      const { data: warns, error: warnsErr } = await supabase.from('employee_warnings').select('*, employee:employees(name)').is('resolved_at', null).order('created_at', { ascending: false })
+      if (warnsErr) console.error('Failed to load warnings:', warnsErr)
+      else setWarnings(warns as any)
     } else if (p?.role === 'employee') {
-      const { data: e } = await supabase
+      const { data: e, error: eErr } = await supabase
         .from('employees')
         .select('*')
         .limit(1)
         .single()
+      if (eErr) { console.error('Failed to load employee:', eErr); return }
       if (e) {
         setEmployee(e)
-        const { data: b } = await supabase
+        const { data: b, error: bErr } = await supabase
           .from('bookings')
           .select('*')
           .eq('employee_id', e.id)
           .order('scheduled_date', { ascending: true })
-        if (b) setBookings(b)
+        if (bErr) console.error('Failed to load employee bookings:', bErr)
+        else setBookings(b)
       }
     }
   }
@@ -255,13 +263,13 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-card-border">
               <h3 className="font-semibold">Client Management</h3>
               <div className="flex gap-2">
-                <Button variant="primary" size="sm">➕ Add Client</Button>
+                <Button variant="primary" size="sm">Add Client</Button>
               <Button variant="secondary" size="sm" icon={Download}>Export CSV</Button>
               </div>
             </div>
             {managedClients.length === 0 ? (
               <EmptyState
-                icon={<span>🧑‍🤝‍🧑</span>}
+                icon={<Users size={48} className="text-muted" />}
                 title="No clients yet"
                 description="Convert your first waitlist signup."
               />

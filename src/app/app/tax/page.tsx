@@ -183,7 +183,7 @@ export default function TaxCenterPage() {
                       <td className="px-3 py-2 whitespace-nowrap text-right font-semibold">{m.miles}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-right text-accent font-semibold">${(m.miles * 0.67).toFixed(2)}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-right">
-                        <button onClick={() => deleteMileage(m.id)} className="p-1 rounded text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={14} /></button>
+                        <button onClick={() => deleteMileage(m.id)} aria-label="Delete mileage entry" className="p-1 rounded text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={14} /></button>
                       </td>
                     </tr>
                   ))}

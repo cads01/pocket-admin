@@ -70,9 +70,9 @@ export default function TemplatesPage() {
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold text-white">{t.label}</h4>
                 {editing !== t.key ? (
-                  <button onClick={() => startEdit(t.key)} className="p-1.5 rounded text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer"><Edit3 size={14} /></button>
+                  <button onClick={() => startEdit(t.key)} aria-label="Edit template" className="p-1.5 rounded text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer"><Edit3 size={14} /></button>
                 ) : (
-                  <button onClick={() => saveEdit(t.key)} className="p-1.5 rounded text-accent hover:bg-accent-dim transition-colors cursor-pointer"><Save size={14} /></button>
+                  <button onClick={() => saveEdit(t.key)} aria-label="Save template" className="p-1.5 rounded text-accent hover:bg-accent-dim transition-colors cursor-pointer"><Save size={14} /></button>
                 )}
               </div>
               {editing === t.key ? (

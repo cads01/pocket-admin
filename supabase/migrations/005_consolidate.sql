@@ -25,13 +25,15 @@ alter table profiles add column if not exists business_id uuid references busine
 alter table profiles drop constraint if exists profiles_role_check;
 alter table profiles add constraint profiles_role_check check (role in ('admin','cleaner','customer','employee'));
 -- Update default for new signups
-alter table profiles alter column role set default 'admin';
+alter table profiles alter column role set default 'customer';
 
--- Fix profile RLS: drop old recursive policy, use business_id
+-- Fix profile RLS: users see only own profile (admins see their business via join)
 drop policy if exists "Admin view all profiles" on profiles;
-create policy "Admin view all profiles" on profiles
+drop policy if exists "Users view own profile" on profiles;
+create policy "Users view own profile" on profiles
   for select using (
-    business_id in (select id from businesses where owner_id = auth.uid())
+    id = auth.uid()
+    or business_id in (select id from businesses where owner_id = auth.uid())
   );
 
 -- ============================================================
@@ -188,11 +190,13 @@ create policy "Manage own inspections" on inspection_reports
     business_id in (select id from businesses where owner_id = auth.uid())
   );
 
--- Waitlist signups stay global (no business_id needed)
+-- Waitlist signups — only the user who signed up can view their entry
 drop policy if exists "Admin all waitlist" on waitlist_signups;
-create policy "Manage own waitlist" on waitlist_signups
+drop policy if exists "Manage own waitlist" on waitlist_signups;
+create policy "View own waitlist" on waitlist_signups
   for select using (
-    auth.role() = 'authenticated'
+    auth.uid() = user_id
+    or auth.role() = 'service_role'
   );
 -- anon insert still allowed (from landing page)
 
@@ -207,7 +211,19 @@ create policy "Manage own locations" on cleaner_locations
   );
 
 -- ============================================================
--- 8. INDEXES for performance
+-- 8. DROP stale marketplace policies (overlap risk with new business_id policies)
+-- ============================================================
+drop policy if exists "Anyone view active cleaners" on cleaners;
+drop policy if exists "Admin manage cleaners" on cleaners;
+drop policy if exists "Cleaner update own" on cleaners;
+drop policy if exists "Admin manage customers" on customers;
+drop policy if exists "Customer view own" on customers;
+drop policy if exists "Anyone view videos" on cleaner_videos;
+drop policy if exists "Cleaner manage own videos" on cleaner_videos;
+drop policy if exists "Admin manage videos" on cleaner_videos;
+
+-- ============================================================
+-- 9. INDEXES for performance
 -- ============================================================
 create index if not exists idx_profiles_business on profiles(business_id);
 create index if not exists idx_managed_clients_business on managed_clients(business_id);
@@ -229,7 +245,7 @@ create index if not exists idx_disputes_booking on disputes(booking_id);
 create index if not exists idx_inspections_booking on inspection_reports(booking_id);
 
 -- ============================================================
--- 9. UPDATE auth trigger — auto-create business for new admins
+-- 10. UPDATE auth trigger — auto-create business for new admins
 -- ============================================================
 create or replace function handle_new_user()
 returns trigger as $$
@@ -237,7 +253,7 @@ declare
   v_business_id uuid;
   v_role text;
 begin
-  v_role := coalesce(new.raw_user_meta_data->>'role', 'admin');
+  v_role := coalesce(new.raw_user_meta_data->>'role', 'customer');
 
   insert into public.profiles (id, email, name, role)
   values (new.id, new.email, new.raw_user_meta_data->>'name', v_role);
@@ -255,7 +271,7 @@ end;
 $$ language plpgsql security definer;
 
 -- ============================================================
--- 10. BACKFILL — create businesses for existing admin profiles
+-- 11. BACKFILL — create businesses for existing admin profiles
 -- ============================================================
 insert into businesses (name, owner_id)
 select coalesce(name || '''s Business', email || '''s Business'), id

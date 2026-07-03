@@ -131,7 +131,7 @@ export default function ExpensesPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-right">
-                      <button onClick={() => deleteExpense(e.id)} className="p-1 rounded text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={14} /></button>
+                      <button onClick={() => deleteExpense(e.id)} aria-label="Delete expense" className="p-1 rounded text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={14} /></button>
                     </td>
                   </tr>
                 ))}
@@ -145,8 +145,9 @@ export default function ExpensesPage() {
         <div className="space-y-3">
           <Input label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <div className="space-y-1">
-            <label className="text-xs font-medium text-[#aaa] block">Category</label>
+            <label htmlFor="expense-category" className="text-xs font-medium text-muted-foreground block">Category</label>
             <select
+              id="expense-category"
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               className="w-full px-3 py-2.5 bg-input border border-input-border rounded-lg text-sm text-foreground focus-glow transition-colors cursor-pointer"

@@ -113,6 +113,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-card-border p-3 space-y-1">
           <button
             onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className="hidden md:flex w-full items-center gap-3 py-2 px-3 text-xs text-muted-foreground hover:text-muted transition-colors cursor-pointer"
           >
             {collapsed ? (
@@ -123,6 +124,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </button>
           <button
             onClick={handleLogout}
+            aria-label="Sign out"
             className="w-full flex items-center gap-3 py-2 px-3 text-xs text-muted-foreground hover:text-red-400 transition-colors cursor-pointer"
           >
             {collapsed ? (
@@ -163,6 +165,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </span>
           <button
             onClick={closeMobile}
+            aria-label="Close navigation"
             className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer"
           >
             <X size={18} />
@@ -215,6 +218,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="sticky top-0 z-30 md:hidden flex items-center gap-3 px-4 py-3 bg-background border-b border-card-border">
           <button
             onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
             className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-surface-hover transition-colors cursor-pointer"
           >
             <Menu size={20} />
