@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { SupabaseProvider, useSupabase } from '@/components/SupabaseProvider'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Link from 'next/link'
+import ToastProvider from '@/components/ui/ToastProvider'
 import {
   LayoutDashboard,
   Calendar,
@@ -135,7 +136,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SupabaseProvider>
-      <DashboardShell>{children}</DashboardShell>
+      <ToastProvider>
+        <DashboardShell>{children}</DashboardShell>
+      </ToastProvider>
     </SupabaseProvider>
   )
 }

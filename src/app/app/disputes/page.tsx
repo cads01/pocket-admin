@@ -14,10 +14,12 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import EmptyState from '@/components/ui/EmptyState'
 import { Send, Scale } from 'lucide-react'
+import { useToast } from '@/components/ui/ToastProvider'
 
 export default function DisputesPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
+  const { success, error } = useToast()
   const [disputes, setDisputes] = useState<Dispute[]>([])
   const [selected, setSelected] = useState<Dispute | null>(null)
   const [messages, setMessages] = useState<DisputeMessage[]>([])
@@ -58,39 +60,49 @@ export default function DisputesPage() {
 
   async function sendMessage() {
     if (!supabase || !selected || !newMsg.trim()) return
-    await supabase.from('dispute_messages').insert({
-      dispute_id: selected.id,
-      sender_id: user!.id,
-      message: newMsg,
-    })
-    setNewMsg('')
-    selectDispute(selected)
+    try {
+      await supabase.from('dispute_messages').insert({
+        dispute_id: selected.id,
+        sender_id: user!.id,
+        message: newMsg,
+      })
+      setNewMsg('')
+      selectDispute(selected)
+      success('Message sent')
+    } catch {
+      error('Failed to send message')
+    }
   }
 
   async function resolveDispute(status: 'resolved' | 'dismissed') {
     if (!supabase || !selected) return
-    await supabase
-      .from('disputes')
-      .update({
-        status,
-        resolution,
-        partial_credit: partialCredit ? parseFloat(partialCredit) : null,
-        resolved_at: new Date().toISOString(),
-      })
-      .eq('id', selected.id)
-
-    if (status === 'resolved' && partialCredit) {
+    try {
       await supabase
-        .from('bookings')
+        .from('disputes')
         .update({
-          escrow_status: 'disputed',
-          status: 'reviewed',
+          status,
+          resolution,
+          partial_credit: partialCredit ? parseFloat(partialCredit) : null,
+          resolved_at: new Date().toISOString(),
         })
-        .eq('id', selected.booking_id)
-    }
+        .eq('id', selected.id)
 
-    selectDispute(selected)
-    load()
+      if (status === 'resolved' && partialCredit) {
+        await supabase
+          .from('bookings')
+          .update({
+            escrow_status: 'disputed',
+            status: 'reviewed',
+          })
+          .eq('id', selected.booking_id)
+      }
+
+      selectDispute(selected)
+      load()
+      success(status === 'resolved' ? 'Dispute resolved' : 'Dispute dismissed')
+    } catch {
+      error('Failed to update dispute')
+    }
   }
 
   return (

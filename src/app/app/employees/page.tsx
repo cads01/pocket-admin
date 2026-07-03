@@ -14,6 +14,7 @@ import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import EmptyState from '@/components/ui/EmptyState'
 import { Users, AlertTriangle, Mail, Phone, Search, UserPlus } from 'lucide-react'
+import { useToast } from '@/components/ui/ToastProvider'
 
 interface EmployeeWithWarnings extends Employee {
   employee_warnings: EmployeeWarning[]
@@ -23,6 +24,7 @@ interface EmployeeWithWarnings extends Employee {
 export default function EmployeesPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
+  const { success, error } = useToast()
   const [employees, setEmployees] = useState<EmployeeWithWarnings[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -86,25 +88,30 @@ export default function EmployeesPage() {
   async function save() {
     if (!supabase) return
     if (!form.name) return
-    const payload = {
-      name: form.name,
-      email: form.email || null,
-      phone: form.phone || null,
-      role: form.role || null,
-      pay_type: form.pay_type,
-      hourly_rate: form.hourly_rate,
-      per_job_rate: form.per_job_rate,
-      status: form.status,
-      skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
-      notes: form.notes || null,
+    try {
+      const payload = {
+        name: form.name,
+        email: form.email || null,
+        phone: form.phone || null,
+        role: form.role || null,
+        pay_type: form.pay_type,
+        hourly_rate: form.hourly_rate,
+        per_job_rate: form.per_job_rate,
+        status: form.status,
+        skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
+        notes: form.notes || null,
+      }
+      if (editId) {
+        await supabase.from('employees').update(payload).eq('id', editId)
+      } else {
+        await supabase.from('employees').insert(payload)
+      }
+      await loadEmployees()
+      setShowModal(false)
+      success(editId ? 'Employee updated' : 'Employee added')
+    } catch {
+      error('Failed to ' + (editId ? 'update' : 'add') + ' employee')
     }
-    if (editId) {
-      await supabase.from('employees').update(payload).eq('id', editId)
-    } else {
-      await supabase.from('employees').insert(payload)
-    }
-    await loadEmployees()
-    setShowModal(false)
   }
 
   const onJob = employees.filter((e) =>

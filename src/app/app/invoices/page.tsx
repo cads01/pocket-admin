@@ -11,10 +11,12 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import Table from '@/components/ui/Table'
 import EmptyState from '@/components/ui/EmptyState'
 import { DollarSign } from 'lucide-react'
+import { useToast } from '@/components/ui/ToastProvider'
 
 export default function InvoicesPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
+  const { success, error } = useToast()
   const [invoices, setInvoices] = useState<any[]>([])
   const [pageLoading, setPageLoading] = useState(true)
 

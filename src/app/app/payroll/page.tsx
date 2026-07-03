@@ -14,6 +14,7 @@ import Table from '@/components/ui/Table'
 import EmptyState from '@/components/ui/EmptyState'
 import Input from '@/components/ui/Input'
 import { DollarSign } from 'lucide-react'
+import { useToast } from '@/components/ui/ToastProvider'
 
 type PayrollWithEmployee = PayrollRecord & { employees: { name: string } | null }
 
@@ -42,6 +43,7 @@ function getPeriodRange(period: string): { start: string; end: string } {
 export default function PayrollPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
+  const { success, error } = useToast()
   const [records, setRecords] = useState<PayrollWithEmployee[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [pageLoading, setPageLoading] = useState(true)
@@ -74,70 +76,80 @@ export default function PayrollPage() {
 
   async function markPaid(id: string) {
     if (!supabase) return
-    await supabase
-      .from('payroll_records')
-      .update({ status: 'paid', paid_at: new Date().toISOString() })
-      .eq('id', id)
-    await load()
+    try {
+      await supabase
+        .from('payroll_records')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', id)
+      await load()
+      success('Payroll marked as paid')
+    } catch {
+      error('Failed to mark as paid')
+    }
   }
 
   async function generatePayroll() {
     if (!supabase) return
     setGenerating(true)
+    try {
+      const range = period === 'custom'
+        ? { start: customStart, end: customEnd }
+        : getPeriodRange(period)
+      if (!range.start || !range.end) { setGenerating(false); return }
 
-    const range = period === 'custom'
-      ? { start: customStart, end: customEnd }
-      : getPeriodRange(period)
-    if (!range.start || !range.end) { setGenerating(false); return }
+      const { data: emps } = await supabase.from('employees').select('*').eq('status', 'active')
+      if (!emps) { setGenerating(false); return }
 
-    const { data: emps } = await supabase.from('employees').select('*').eq('status', 'active')
-    if (!emps) { setGenerating(false); return }
+      const inserts: any[] = []
+      for (const emp of emps) {
+        const { data: events } = await supabase
+          .from('clock_events')
+          .select('*')
+          .eq('employee_id', emp.id)
+          .gte('clock_in', range.start + 'T00:00:00')
+          .lte('clock_in', range.end + 'T23:59:59')
 
-    const inserts: any[] = []
-    for (const emp of emps) {
-      const { data: events } = await supabase
-        .from('clock_events')
-        .select('*')
-        .eq('employee_id', emp.id)
-        .gte('clock_in', range.start + 'T00:00:00')
-        .lte('clock_in', range.end + 'T23:59:59')
+        if (!events) continue
 
-      if (!events) continue
+        let totalMinutes = 0
+        const jobIds = new Set<string>()
+        for (const e of events) {
+          if (e.duration_minutes) totalMinutes += e.duration_minutes
+          if (e.booking_id) jobIds.add(e.booking_id)
+        }
 
-      let totalMinutes = 0
-      const jobIds = new Set<string>()
-      for (const e of events) {
-        if (e.duration_minutes) totalMinutes += e.duration_minutes
-        if (e.booking_id) jobIds.add(e.booking_id)
+        const hoursWorked = Math.round((totalMinutes / 60) * 100) / 100
+        const jobsCompleted = jobIds.size
+        const hourlyEarnings = Math.round(hoursWorked * emp.hourly_rate * 100) / 100
+        const perJobEarnings = Math.round(jobsCompleted * emp.per_job_rate * 100) / 100
+        const totalEarnings = Math.round((hourlyEarnings + perJobEarnings) * 100) / 100
+
+        if (totalEarnings > 0) {
+          inserts.push({
+            employee_id: emp.id,
+            period_start: range.start,
+            period_end: range.end,
+            hours_worked: hoursWorked,
+            jobs_completed: jobsCompleted,
+            hourly_earnings: hourlyEarnings,
+            per_job_earnings: perJobEarnings,
+            total_earnings: totalEarnings,
+            status: 'pending',
+          })
+        }
       }
 
-      const hoursWorked = Math.round((totalMinutes / 60) * 100) / 100
-      const jobsCompleted = jobIds.size
-      const hourlyEarnings = Math.round(hoursWorked * emp.hourly_rate * 100) / 100
-      const perJobEarnings = Math.round(jobsCompleted * emp.per_job_rate * 100) / 100
-      const totalEarnings = Math.round((hourlyEarnings + perJobEarnings) * 100) / 100
-
-      if (totalEarnings > 0) {
-        inserts.push({
-          employee_id: emp.id,
-          period_start: range.start,
-          period_end: range.end,
-          hours_worked: hoursWorked,
-          jobs_completed: jobsCompleted,
-          hourly_earnings: hourlyEarnings,
-          per_job_earnings: perJobEarnings,
-          total_earnings: totalEarnings,
-          status: 'pending',
-        })
+      if (inserts.length > 0) {
+        await supabase.from('payroll_records').insert(inserts)
       }
-    }
 
-    if (inserts.length > 0) {
-      await supabase.from('payroll_records').insert(inserts)
+      setGenerating(false)
+      await load()
+      success('Payroll generated')
+    } catch {
+      error('Failed to generate payroll')
+      setGenerating(false)
     }
-
-    setGenerating(false)
-    await load()
   }
 
   const pendingTotal = records.filter(r => r.status === 'pending').reduce((s, r) => s + r.total_earnings, 0)

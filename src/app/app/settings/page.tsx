@@ -8,10 +8,12 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { RefreshCw, Save } from 'lucide-react'
+import { useToast } from '@/components/ui/ToastProvider'
 
 export default function SettingsPage() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
+  const { success, error } = useToast()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
@@ -41,8 +43,14 @@ export default function SettingsPage() {
   async function save() {
     if (!supabase) return
     setSaving(true)
-    await supabase.from('profiles').update({ name, phone }).eq('id', user!.id)
-    setSaving(false)
+    try {
+      await supabase.from('profiles').update({ name, phone }).eq('id', user!.id)
+      setSaving(false)
+      success('Settings saved')
+    } catch {
+      error('Failed to save settings')
+      setSaving(false)
+    }
   }
 
   return (

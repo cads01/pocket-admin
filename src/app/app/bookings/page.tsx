@@ -16,6 +16,7 @@ import Table from '@/components/ui/Table'
 import EmptyState from '@/components/ui/EmptyState'
 import Input from '@/components/ui/Input'
 import { Calendar, Clock, DollarSign, Check, Plus } from 'lucide-react'
+import { useToast } from '@/components/ui/ToastProvider'
 
 const DEFAULT_ROOMS = [
   { room: 'Kitchen', tasks: ['Countertops & surfaces', 'Sink & faucet', 'Stovetop & range', 'Microwave interior', 'Cabinet exteriors', 'Sweep & mop floor', 'Take out trash'] },
@@ -27,6 +28,7 @@ const DEFAULT_ROOMS = [
 export default function BookingWizard() {
   const { supabase, user, loading } = useSupabase()
   const router = useRouter()
+  const { success, error } = useToast()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [cleaners, setCleaners] = useState<Cleaner[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -84,67 +86,82 @@ export default function BookingWizard() {
   async function createBooking() {
     if (!supabase || !selectedCleaner || !selectedDate || !address) return
     setSubmitting(true)
+    try {
+      const total = (cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours
+      const fee = Math.round(total * 0.15)
+      const cleanerCut = total - fee
 
-    const total = (cleaners.find(c => c.id === selectedCleaner)?.hourly_rate || 50) * hours
-    const fee = Math.round(total * 0.15)
-    const cleanerCut = total - fee
+      const { data: booking } = await supabase
+        .from('bookings')
+        .insert({
+          cleaner_id: selectedCleaner,
+          employee_id: selectedEmployee || null,
+          customer_id: user!.id,
+          scheduled_date: selectedDate,
+          duration: hours,
+          amount: Math.round(total),
+          platform_fee: fee,
+          cleaner_amount: Math.round(cleanerCut),
+          address,
+          status: 'requested',
+          escrow_status: 'held',
+          inspection_status: 'pending',
+          recovery_status: 'none',
+        })
+        .select('id')
+        .single()
 
-    const { data: booking } = await supabase
-      .from('bookings')
-      .insert({
-        cleaner_id: selectedCleaner,
-        employee_id: selectedEmployee || null,
-        customer_id: user!.id,
-        scheduled_date: selectedDate,
-        duration: hours,
-        amount: Math.round(total),
-        platform_fee: fee,
-        cleaner_amount: Math.round(cleanerCut),
-        address,
-        status: 'requested',
-        escrow_status: 'held',
-        inspection_status: 'pending',
-        recovery_status: 'none',
-      })
-      .select('id')
-      .single()
-
-    if (booking) {
-      const tasksToInsert: any[] = []
-      selectedRooms.forEach(r => {
-        r.tasks.filter(t => t.checked).forEach(t => {
-          tasksToInsert.push({
-            booking_id: booking.id,
-            room: r.room,
-            task: t.task,
+      if (booking) {
+        const tasksToInsert: any[] = []
+        selectedRooms.forEach(r => {
+          r.tasks.filter(t => t.checked).forEach(t => {
+            tasksToInsert.push({
+              booking_id: booking.id,
+              room: r.room,
+              task: t.task,
+            })
           })
         })
-      })
-      if (tasksToInsert.length > 0) {
-        await supabase.from('booking_tasks').insert(tasksToInsert)
+        if (tasksToInsert.length > 0) {
+          await supabase.from('booking_tasks').insert(tasksToInsert)
+        }
       }
-    }
 
-    setSubmitting(false)
-    setShowWizard(false)
-    setStep(0)
-    load()
+      setSubmitting(false)
+      setShowWizard(false)
+      setStep(0)
+      load()
+      success('Booking created successfully')
+    } catch {
+      error('Failed to create booking')
+      setSubmitting(false)
+    }
   }
 
   async function clockIn(bookingId: string, employeeId: string) {
     if (!supabase) return
-    await supabase.from('clock_events').insert({
-      employee_id: employeeId,
-      booking_id: bookingId,
-      clock_in: new Date().toISOString(),
-    })
-    load()
+    try {
+      await supabase.from('clock_events').insert({
+        employee_id: employeeId,
+        booking_id: bookingId,
+        clock_in: new Date().toISOString(),
+      })
+      load()
+      success('Clocked in')
+    } catch {
+      error('Failed to clock in')
+    }
   }
 
   async function clockOut(clockEventId: string) {
     if (!supabase) return
-    await supabase.from('clock_events').update({ clock_out: new Date().toISOString() }).eq('id', clockEventId)
-    load()
+    try {
+      await supabase.from('clock_events').update({ clock_out: new Date().toISOString() }).eq('id', clockEventId)
+      load()
+      success('Clocked out')
+    } catch {
+      error('Failed to clock out')
+    }
   }
 
   const toggleRoomTask = (roomIdx: number, taskIdx: number) => {
