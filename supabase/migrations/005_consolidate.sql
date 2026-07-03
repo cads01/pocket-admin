@@ -112,6 +112,7 @@ alter table reviews add column if not exists managed_client_id uuid references m
 
 drop policy if exists "Admin manage reviews" on reviews;
 drop policy if exists "Manage own reviews" on reviews;
+drop policy if exists "Anyone view reviews" on reviews;
 create policy "Manage own reviews" on reviews
   for all using (
     exists (select 1 from managed_clients where id = reviews.managed_client_id and business_id in (select id from businesses where owner_id = auth.uid()))
