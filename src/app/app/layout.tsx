@@ -8,16 +8,16 @@ import Link from 'next/link'
 
 const NAV_ITEMS = [
   { icon: '📊', label: 'Dashboard', href: '/app' },
-  { icon: '📅', label: 'Bookings', href: '/bookings' },
-  { icon: '🧹', label: 'Cleaners', href: '/cleaners' },
-  { icon: '👥', label: 'Clients', href: '/clients' },
-  { icon: '🔍', label: 'Inspections', href: '/inspections' },
-  { icon: '⚖️', label: 'Disputes', href: '/disputes' },
-  { icon: '💰', label: 'Invoices', href: '/invoices' },
-  { icon: '⭐', label: 'Reviews', href: '/reviews' },
-  { icon: '🎥', label: 'Videos', href: '/videos' },
-  { icon: '💸', label: 'Payouts', href: '/payouts' },
-  { icon: '⚙️', label: 'Settings', href: '/settings' },
+  { icon: '📅', label: 'Bookings', href: '/app/bookings' },
+  { icon: '🧹', label: 'Cleaners', href: '/app/cleaners' },
+  { icon: '👥', label: 'Clients', href: '/app/clients' },
+  { icon: '🔍', label: 'Inspections', href: '/app/inspections' },
+  { icon: '⚖️', label: 'Disputes', href: '/app/disputes' },
+  { icon: '💰', label: 'Invoices', href: '/app/invoices' },
+  { icon: '⭐', label: 'Reviews', href: '/app/reviews' },
+  { icon: '🎥', label: 'Videos', href: '/app/videos' },
+  { icon: '💸', label: 'Payouts', href: '/app/payouts' },
+  { icon: '⚙️', label: 'Settings', href: '/app/settings' },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
