@@ -48,6 +48,7 @@ alter table managed_clients add column if not exists total_spent numeric(12,2) d
 
 drop policy if exists "Admin all clients" on managed_clients;
 drop policy if exists "Manage own clients" on managed_clients;
+drop policy if exists "Manage own clients insert" on managed_clients;
 create policy "Manage own clients" on managed_clients
   for all using (
     business_id in (select id from businesses where owner_id = auth.uid())
@@ -64,9 +65,10 @@ do $$
 begin
   if to_regclass('public.employees') is not null then
     execute 'alter table employees add column if not exists business_id uuid references businesses(id) on delete cascade';
-    drop policy if exists "Admin manage employees" on employees;
-    drop policy if exists "Client manage own employees" on employees;
-    drop policy if exists "Manage own employees" on employees;
+    execute 'drop policy if exists "Admin manage employees" on employees';
+    execute 'drop policy if exists "Client manage own employees" on employees';
+    execute 'drop policy if exists "Manage own employees" on employees';
+    execute 'drop policy if exists "Manage own employees insert" on employees';
     execute 'create policy "Manage own employees" on employees for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
     execute 'create policy "Manage own employees insert" on employees for insert with check (business_id in (select id from businesses where owner_id = auth.uid()))';
   end if;
@@ -90,6 +92,7 @@ do $$
 begin
   if to_regclass('public.employees') is not null then
     execute 'alter table bookings add column if not exists employee_id uuid references employees(id) on delete set null';
+    execute 'drop policy if exists "Manage own bookings" on bookings';
     execute 'create policy "Manage own bookings" on bookings
       for all using (
         exists (select 1 from managed_clients where id = bookings.managed_client_id and business_id in (select id from businesses where owner_id = auth.uid()))
@@ -97,6 +100,7 @@ begin
         exists (select 1 from employees where id = bookings.employee_id and business_id in (select id from businesses where owner_id = auth.uid()))
       )';
   else
+    execute 'drop policy if exists "Manage own bookings" on bookings';
     execute 'create policy "Manage own bookings" on bookings
       for all using (
         exists (select 1 from managed_clients where id = bookings.managed_client_id and business_id in (select id from businesses where owner_id = auth.uid()))
@@ -132,8 +136,9 @@ do $$
 begin
   if to_regclass('public.clock_events') is not null then
     execute 'alter table clock_events add column if not exists business_id uuid references businesses(id) on delete cascade';
-    drop policy if exists "Admin manage clock_events" on clock_events;
-    drop policy if exists "Employee view own" on clock_events;
+    execute 'drop policy if exists "Admin manage clock_events" on clock_events';
+    execute 'drop policy if exists "Employee view own" on clock_events';
+    execute 'drop policy if exists "Manage own clock_events" on clock_events';
     execute 'create policy "Manage own clock_events" on clock_events for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
   end if;
 end $$;
@@ -142,7 +147,8 @@ do $$
 begin
   if to_regclass('public.employee_warnings') is not null then
     execute 'alter table employee_warnings add column if not exists business_id uuid references businesses(id) on delete cascade';
-    drop policy if exists "Admin manage warnings" on employee_warnings;
+    execute 'drop policy if exists "Admin manage warnings" on employee_warnings';
+    execute 'drop policy if exists "Manage own warnings" on employee_warnings';
     execute 'create policy "Manage own warnings" on employee_warnings for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
   end if;
 end $$;
@@ -151,7 +157,8 @@ do $$
 begin
   if to_regclass('public.payroll_records') is not null then
     execute 'alter table payroll_records add column if not exists business_id uuid references businesses(id) on delete cascade';
-    drop policy if exists "Admin manage payroll" on payroll_records;
+    execute 'drop policy if exists "Admin manage payroll" on payroll_records';
+    execute 'drop policy if exists "Manage own payroll" on payroll_records';
     execute 'create policy "Manage own payroll" on payroll_records for all using (business_id in (select id from businesses where owner_id = auth.uid()))';
   end if;
 end $$;
@@ -160,6 +167,7 @@ alter table booking_tasks add column if not exists business_id uuid references b
 drop policy if exists "Admin full access booking_tasks" on booking_tasks;
 drop policy if exists "Parties view booking_tasks" on booking_tasks;
 drop policy if exists "Cleaner update booking_tasks" on booking_tasks;
+drop policy if exists "Manage own booking_tasks" on booking_tasks;
 create policy "Manage own booking_tasks" on booking_tasks
   for all using (
     business_id in (select id from businesses where owner_id = auth.uid())
@@ -168,6 +176,7 @@ create policy "Manage own booking_tasks" on booking_tasks
 alter table task_photos add column if not exists business_id uuid references businesses(id) on delete cascade;
 drop policy if exists "Admin full access task_photos" on task_photos;
 drop policy if exists "Parties view task_photos" on task_photos;
+drop policy if exists "Manage own task_photos" on task_photos;
 create policy "Manage own task_photos" on task_photos
   for all using (
     business_id in (select id from businesses where owner_id = auth.uid())
@@ -176,6 +185,7 @@ create policy "Manage own task_photos" on task_photos
 alter table disputes add column if not exists business_id uuid references businesses(id) on delete cascade;
 drop policy if exists "Admin full access disputes" on disputes;
 drop policy if exists "Parties view disputes" on disputes;
+drop policy if exists "Manage own disputes" on disputes;
 create policy "Manage own disputes" on disputes
   for all using (
     business_id in (select id from businesses where owner_id = auth.uid())
@@ -185,10 +195,12 @@ alter table dispute_messages add column if not exists business_id uuid reference
 drop policy if exists "Admin full access dispute_msgs" on dispute_messages;
 drop policy if exists "Parties view dispute_msgs" on dispute_messages;
 drop policy if exists "Parties insert dispute_msgs" on dispute_messages;
+drop policy if exists "Manage own dispute_msgs" on dispute_messages;
 create policy "Manage own dispute_msgs" on dispute_messages
   for all using (
     business_id in (select id from businesses where owner_id = auth.uid())
   );
+drop policy if exists "Insert dispute_msgs" on dispute_messages;
 create policy "Insert dispute_msgs" on dispute_messages
   for insert with check (
     business_id in (select id from businesses where owner_id = auth.uid())
@@ -197,6 +209,7 @@ create policy "Insert dispute_msgs" on dispute_messages
 alter table escrow_transactions add column if not exists business_id uuid references businesses(id) on delete cascade;
 drop policy if exists "Admin full access escrow" on escrow_transactions;
 drop policy if exists "Parties view escrow" on escrow_transactions;
+drop policy if exists "Manage own escrow" on escrow_transactions;
 create policy "Manage own escrow" on escrow_transactions
   for all using (
     business_id in (select id from businesses where owner_id = auth.uid())
@@ -205,6 +218,7 @@ create policy "Manage own escrow" on escrow_transactions
 alter table inspection_reports add column if not exists business_id uuid references businesses(id) on delete cascade;
 drop policy if exists "Admin full access inspections" on inspection_reports;
 drop policy if exists "Parties view inspections" on inspection_reports;
+drop policy if exists "Manage own inspections" on inspection_reports;
 create policy "Manage own inspections" on inspection_reports
   for all using (
     business_id in (select id from businesses where owner_id = auth.uid())
@@ -215,6 +229,7 @@ drop policy if exists "Admin all waitlist" on waitlist_signups;
 drop policy if exists "Manage own waitlist" on waitlist_signups;
 drop policy if exists "View own waitlist" on waitlist_signups;
 drop policy if exists "Anyone can insert waitlist" on waitlist_signups;
+drop policy if exists "View waitlist" on waitlist_signups;
 create policy "Anyone can insert waitlist" on waitlist_signups
   for insert with check (true);
 create policy "View waitlist" on waitlist_signups
@@ -228,6 +243,7 @@ do $$
 begin
   if to_regclass('public.employees') is not null then
     execute 'alter table cleaner_locations add column if not exists employee_id uuid references employees(id) on delete cascade';
+    execute 'drop policy if exists "Manage own locations" on cleaner_locations';
     execute 'create policy "Manage own locations" on cleaner_locations for all using (exists (select 1 from employees where id = cleaner_locations.employee_id and business_id in (select id from businesses where owner_id = auth.uid())))';
   end if;
 end $$;
