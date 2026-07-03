@@ -14,7 +14,10 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Table from '@/components/ui/Table'
 import EmptyState from '@/components/ui/EmptyState'
-import { AlertTriangle, ClipboardList, Download, AlertCircle, CheckCircle } from 'lucide-react'
+import { AlertTriangle, ClipboardList, Download, AlertCircle, CheckCircle, TrendingUp, BarChart3, Users } from 'lucide-react'
+import RevenueChart from '@/components/charts/RevenueChart'
+import BookingsChart from '@/components/charts/BookingsChart'
+import ClientChart from '@/components/charts/ClientChart'
 
 export default function DashboardPage() {
   const { supabase, user, loading } = useSupabase()
@@ -197,11 +200,36 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 md:mb-6 animate-fade-in-up">
+            <Card variant="default" padding="md">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp size={16} className="text-accent" />
+                <h3 className="text-sm font-semibold">Revenue</h3>
+              </div>
+              <RevenueChart bookings={bookings} />
+            </Card>
+            <Card variant="default" padding="md">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 size={16} className="text-info" />
+                <h3 className="text-sm font-semibold">Bookings by Status</h3>
+              </div>
+              <BookingsChart bookings={bookings} />
+            </Card>
+            <Card variant="default" padding="md">
+              <div className="flex items-center gap-2 mb-3">
+                <Users size={16} className="text-purple" />
+                <h3 className="text-sm font-semibold">Client Growth</h3>
+              </div>
+              <ClientChart customers={customers} />
+            </Card>
+          </div>
+
           {/* Waitlist */}
           <Card variant="default" className="mb-4 md:mb-6 overflow-x-auto p-0 animate-fade-in-up">
             <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-card-border">
               <h3 className="font-semibold">Waitlist Signups</h3>
-              <Button variant="secondary" size="sm">📥 Export CSV</Button>
+              <Button variant="secondary" size="sm" icon={Download}>Export CSV</Button>
             </div>
             {waitlist.length === 0 ? (
               <EmptyState
