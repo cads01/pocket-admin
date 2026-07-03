@@ -25,7 +25,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/app')
+    window.location.href = '/app'
   }
 
   async function handleGoogleLogin() {

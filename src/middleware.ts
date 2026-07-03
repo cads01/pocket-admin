@@ -55,7 +55,7 @@ export async function middleware(req: NextRequest) {
 
   if (user && isAuthPage) {
     const url = req.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = '/app'
     return NextResponse.redirect(url)
   }
 

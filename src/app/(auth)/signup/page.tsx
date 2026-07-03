@@ -33,13 +33,6 @@ export default function SignupPage() {
     }
 
     if (authData.user) {
-      await supabase.from('profiles').insert({
-        id: authData.user.id,
-        email,
-        name,
-        role,
-      })
-
       if (role === 'cleaner') {
         await supabase.from('cleaners').insert({
           profile_id: authData.user.id,
@@ -53,8 +46,8 @@ export default function SignupPage() {
       }
     }
 
-    router.push('/app')
     setLoading(false)
+    window.location.href = '/app'
   }
 
   return (

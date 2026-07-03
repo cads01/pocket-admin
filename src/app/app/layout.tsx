@@ -28,7 +28,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   async function handleLogout() {
     if (!supabase) return
     await supabase.auth.signOut()
-    router.push('/login')
+    window.location.href = '/login'
   }
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''

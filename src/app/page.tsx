@@ -21,7 +21,7 @@ function LandingContent() {
   useEffect(() => {
     if (loading) return
     supabase?.auth.getUser().then(({ data: { user } }) => {
-      if (user) { router.replace('/app'); return }
+      if (user) { window.location.href = '/app'; return }
       setChecking(false)
     })
   }, [loading])
